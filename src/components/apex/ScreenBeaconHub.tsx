@@ -2090,13 +2090,9 @@ export function ScreenBeaconHub() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-black text-white">Guide Beacon Hub</h2>
-          <p className="text-sm text-slate-400">
-            Edge AI hardware · Task offload engine ·{' '}
-            {taskCatalog.filter((t) => t.enabled).length} active offloads
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">
+          Edge AI hardware · Task offload engine · {taskCatalog.filter((t) => t.enabled).length} active offloads
+        </p>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors">
             <PlusIcon className="w-3.5 h-3.5" /> Add Beacon

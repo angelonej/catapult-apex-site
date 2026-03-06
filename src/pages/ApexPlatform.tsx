@@ -53,6 +53,7 @@ import {
   RocketIcon,
   SparklesIcon,
   ScrollTextIcon,
+  Trash2Icon,
 } from 'lucide-react'
 import { ScreenVoice } from '../components/apex/ScreenVoice'
 import { ScreenWorkflows } from '../components/apex/ScreenWorkflows'
@@ -61,14 +62,16 @@ import { ScreenGrowth } from '../components/apex/ScreenGrowth'
 import { ScreenComms } from '../components/apex/ScreenComms'
 import { ScreenInboundComms } from '../components/apex/ScreenInboundComms'
 import { ScreenRules } from '../components/apex/ScreenRules'
-import { ScreenPersonas } from '../components/apex/ScreenPersonas'
+import { ScreenPersonas, EXEC_STATIC, ALL_AVATARS } from '../components/apex/ScreenPersonas'
 import { ScreenBeaconHub } from '../components/apex/ScreenBeaconHub'
 import { ScreenBoardOfDirectors } from '../components/apex/ScreenBoardOfDirectors'
 import { ScreenZello } from '../components/apex/ScreenZello'
+import { ScreenSessions } from '../components/apex/ScreenSessions'
 import { ScreenSetup } from '../components/apex/ScreenSetup'
 import { useAgents, useCreateAgent, useDeleteAgent, type UseAgentsResult, type NewAgentForm } from '../hooks/useAgents'
 import { useDecisions, type DecisionItem } from '../hooks/useDecisions'
 import { ROLE_META } from '../lib/agentApi'
+import { localAgentStore, subscribeAgentStore } from '../lib/localAgentStore'
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type Screen =
   | 'dashboard'
@@ -89,11 +92,52 @@ type Screen =
   | 'setup'
   | 'inbound'
   | 'rules'
+  | 'sessions'
 type DecisionFilter = 'all' | 'pending' | 'approved' | 'flagged'
 type TimePeriod = 'today' | 'week' | 'month' | 'quarter'
 // ─── Data ──────────────────────────────────────────────────────────────────────
-const executives = [
-  {
+const ANALYTICS_ROLE_COLORS: Record<string, { color: string; text: string; bg: string; border: string }> = {
+  ceo:  { color: 'from-amber-400 to-amber-600',   text: 'text-amber-400',   bg: 'bg-amber-500/20',   border: 'border-amber-500/40'   },
+  cfo:  { color: 'from-blue-400 to-blue-600',     text: 'text-blue-400',    bg: 'bg-blue-500/20',    border: 'border-blue-500/40'    },
+  coo:  { color: 'from-green-400 to-green-600',   text: 'text-green-400',   bg: 'bg-green-500/20',   border: 'border-green-500/40'   },
+  cmo:  { color: 'from-pink-400 to-pink-600',     text: 'text-pink-400',    bg: 'bg-pink-500/20',    border: 'border-pink-500/40'    },
+  cto:  { color: 'from-purple-400 to-purple-600', text: 'text-purple-400',  bg: 'bg-purple-500/20',  border: 'border-purple-500/40'  },
+  clo:  { color: 'from-cyan-400 to-cyan-600',     text: 'text-cyan-400',    bg: 'bg-cyan-500/20',    border: 'border-cyan-500/40'    },
+  chro: { color: 'from-rose-400 to-rose-600',     text: 'text-rose-400',    bg: 'bg-rose-500/20',    border: 'border-rose-500/40'    },
+  cso:  { color: 'from-orange-400 to-orange-600', text: 'text-orange-400',  bg: 'bg-orange-500/20',  border: 'border-orange-500/40'  },
+  cro:  { color: 'from-red-400 to-rose-600',      text: 'text-red-400',     bg: 'bg-red-500/20',     border: 'border-red-500/40'     },
+  cpo:  { color: 'from-indigo-400 to-violet-600', text: 'text-indigo-400',  bg: 'bg-indigo-500/20',  border: 'border-indigo-500/40'  },
+  cdo:  { color: 'from-sky-400 to-cyan-600',      text: 'text-sky-400',     bg: 'bg-sky-500/20',     border: 'border-sky-500/40'     },
+  ciso: { color: 'from-slate-400 to-gray-600',    text: 'text-slate-400',   bg: 'bg-slate-500/20',   border: 'border-slate-500/40'   },
+  cco:  { color: 'from-teal-400 to-emerald-600',  text: 'text-teal-400',    bg: 'bg-teal-500/20',    border: 'border-teal-500/40'    },
+};
+const ANALYTICS_DEFAULT_COLORS = { color: 'from-slate-500 to-slate-700', text: 'text-slate-400', bg: 'bg-slate-500/20', border: 'border-slate-500/40' };
+function getLiveAnalyticsExecs() {
+  return localAgentStore.getAll()
+    .filter((a) => a.agentId.startsWith('agent.exec.') && a.role !== 'moderator')
+    .map((a, i) => {
+      const c = ANALYTICS_ROLE_COLORS[a.role] ?? ANALYTICS_DEFAULT_COLORS;
+      // deterministic-ish seeded numbers so they don't re-randomize on every render
+      const seed = a.role.charCodeAt(0) + a.role.charCodeAt(a.role.length - 1);
+      return {
+        id: a.agentId,
+        role: a.role.toUpperCase(),
+        name: a.name ?? a.role,
+        fullName: a.displayName ?? a.specialty ?? a.role,
+        color: c.color,
+        bg: c.bg,
+        border: c.border,
+        text: c.text,
+        status: a.status ?? 'active',
+        performance: a.performance ?? (85 + (seed % 15)),
+        decisions: a.decisionsToday ?? (seed % 40) + 5,
+        roi: a.roiToday ?? (seed * 120 + 1200),
+        uptime: a.uptime ?? 99.5,
+        specialty: a.specialty ?? a.role,
+      };
+    });
+}
+const executives = [{
     id: 'ceo',
     role: 'CEO',
     name: 'Aria',
@@ -542,28 +586,50 @@ function ScreenDashboard({
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-4 lg:grid-cols-8 gap-2">
-          {displayAgents.map((agent) => (
-            <button
-              key={agent.agentId}
-              onClick={() => onNavigate('team')}
-              className="flex flex-col items-center gap-1.5 group"
-            >
-              <div
-                className={`relative w-10 h-10 bg-gradient-to-br ${agent.colorGradient ?? 'from-slate-600 to-slate-700'} rounded-xl flex items-center justify-center shadow-lg`}
+        <div className="grid pb-1" style={{gridTemplateColumns:`repeat(${displayAgents.length}, minmax(0, 1fr))`}}>
+          {displayAgents.map((agent) => {
+            const staticData = EXEC_STATIC[agent.agentId]
+            const AvatarComponent = staticData?.Avatar
+            const isActive = agent.status === 'active'
+            return (
+              <button
+                key={agent.agentId}
+                onClick={() => onNavigate('team')}
+                title={`${agent.name} — ${staticData?.fullName ?? agent.role.toUpperCase()} · ${isActive ? 'Active' : 'Paused'}`}
+                className="flex flex-col items-center gap-1.5 group w-full"
               >
-                <span className="text-white font-black text-xs">
-                  {agent.avatarInitial ?? agent.name[0]}
-                </span>
-                <div className="absolute -top-0.5 -right-0.5">
-                  <StatusDot status={agent.status} />
+                <div className="relative">
+                  {/* Active glow ring */}
+                  {isActive && (
+                    <span className="absolute inset-0 rounded-2xl ring-2 ring-green-400/70 animate-pulse z-10 pointer-events-none" />
+                  )}
+                  <div
+                    className={`relative w-14 h-14 bg-gradient-to-br ${agent.colorGradient ?? 'from-slate-600 to-slate-700'} rounded-2xl flex items-center justify-center shadow-lg overflow-hidden ${isActive ? 'ring-2 ring-green-400/40' : 'opacity-60'}`}
+                  >
+                    {AvatarComponent ? (
+                      <AvatarComponent />
+                    ) : (
+                      <span className="text-white font-black text-sm">
+                        {agent.avatarInitial ?? agent.name[0]}
+                      </span>
+                    )}
+                  </div>
+                  {/* Status dot — bottom right */}
+                  <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-slate-950 z-20 ${isActive ? 'bg-green-400' : 'bg-slate-600'}`}>
+                    {isActive && <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-60" />}
+                  </span>
                 </div>
-              </div>
-              <span className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors">
-                {agent.role.toUpperCase()}
-              </span>
-            </button>
-          ))}
+                <div className="text-center leading-tight">
+                  <p className="text-xs font-semibold text-white group-hover:text-orange-300 transition-colors truncate max-w-[56px]">
+                    {agent.name}
+                  </p>
+                  <p className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">
+                    {agent.role.toUpperCase()}
+                  </p>
+                </div>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -757,11 +823,13 @@ function AddExecDrawer({
     systemPrompt: '',
     inherits: 'agent.exec.executive',
   })
+  const [selectedAvatarKey, setSelectedAvatarKey] = useState<string | null>(null)
   const { create, loading, error, reset } = useCreateAgent(onCreated)
 
   function handleClose() {
     reset()
     setForm({ name: '', description: '', role: 'ceo', tier: 'strategic', systemPrompt: '', inherits: 'agent.exec.executive' })
+    setSelectedAvatarKey(null)
     onClose()
   }
 
@@ -805,6 +873,41 @@ function AddExecDrawer({
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              {/* Avatar picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Avatar</label>
+                <div className="grid grid-cols-6 gap-2">
+                  {ALL_AVATARS.map(({ key, Component }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      title={key}
+                      onClick={() => {
+                        setSelectedAvatarKey(key)
+                        if (!form.name) setForm(f => ({ ...f, name: key }))
+                      }}
+                      className={`relative w-full aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                        selectedAvatarKey === key
+                          ? 'border-orange-400 ring-2 ring-orange-400/40 scale-105'
+                          : 'border-slate-700 hover:border-slate-500'
+                      }`}
+                    >
+                      <div className="w-full h-full bg-slate-800">
+                        <Component />
+                      </div>
+                      {selectedAvatarKey === key && (
+                        <div className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-orange-400 rounded-full flex items-center justify-center">
+                          <span className="text-white text-[8px] font-black">✓</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {selectedAvatarKey && (
+                  <p className="text-xs text-orange-400 mt-1.5">Selected: {selectedAvatarKey}</p>
+                )}
+              </div>
+
               {/* Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Agent Name</label>
@@ -938,19 +1041,24 @@ function roleGradient(role: string) {
 function ScreenTeam({ agentStore }: { agentStore: UseAgentsResult }) {
   const { agents: allAgents, loading, usingMockData, setStatus, refetch } = agentStore
 
-  // Show only the core exec team + any user-added custom agents.
-  // Exclude board directors, extended C-suite seeded specialists, and advisors
-  // that only belong on the Board of Directors screen.
-  const BOARD_AND_SPECIALIST_IDS = new Set([
+  // Show only exec agents from the store — this reflects the wizard-generated roster.
+  // Exclude: board directors, moderator, advisor/worker agents (they belong on other tabs).
+  const NON_EXEC_IDS = new Set([
     'agent.board.chair', 'agent.board.audit', 'agent.board.risk',
-    'agent.board.comp', 'agent.board.gov',
-    'agent.board.ethics', 'agent.board.independent', 'agent.board.tech',
-    'agent.board.strategy', 'agent.board.investor', 'agent.board.customer',
-    'agent.exec.cro', 'agent.exec.cpo', 'agent.exec.cdo', 'agent.exec.ciso',
-    'agent.exec.cso', 'agent.exec.cco', 'agent.exec.moderator',
-    'agent.advisor.counsel', 'agent.exec.cos', 'agent.exec.vpe', 'agent.exec.growth',
-  ])
-  const agents = allAgents.filter((a) => !BOARD_AND_SPECIALIST_IDS.has(a.agentId))
+    'agent.board.comp', 'agent.board.gov', 'agent.board.ethics',
+    'agent.board.independent', 'agent.board.tech', 'agent.board.strategy',
+    'agent.board.investor', 'agent.board.customer',
+    'agent.exec.moderator',
+  ]);
+  const agents = allAgents.filter(
+    (a) =>
+      a.agentId.startsWith('agent.exec.') &&
+      !NON_EXEC_IDS.has(a.agentId) &&
+      a.role !== 'moderator' &&
+      !a.agentId.startsWith('agent.worker.') &&
+      !a.agentId.startsWith('agent.advisor.') &&
+      !a.agentId.startsWith('agent.board.')
+  );
   const [selected, setSelected] = useState<string | null>(null)
   const [showAddDrawer, setShowAddDrawer] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -1016,13 +1124,10 @@ function ScreenTeam({ agentStore }: { agentStore: UseAgentsResult }) {
       </AnimatePresence>
 
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white">AI Executive Team</h2>
-          <p className="text-sm text-slate-400">
-            {activeCount} active{agents.length > activeCount ? ` · ${agents.length - activeCount} paused` : ''}
-            {usingMockData ? ' · mock data' : ''}
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">
+          {activeCount} active{agents.length > activeCount ? ` · ${agents.length - activeCount} paused` : ''}
+          {usingMockData ? ' · mock data' : ''}
+        </p>
         <button
           onClick={() => setShowAddDrawer(true)}
           className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors"
@@ -1063,11 +1168,14 @@ function ScreenTeam({ agentStore }: { agentStore: UseAgentsResult }) {
             >
               <div className="flex items-start gap-4">
                 <div
-                  className={`w-16 h-16 bg-gradient-to-br ${exec ? roleGradient(exec.role) : 'from-slate-600 to-slate-700'} rounded-2xl flex items-center justify-center shadow-xl flex-shrink-0`}
+                  className={`w-16 h-16 bg-gradient-to-br ${exec ? roleGradient(exec.role) : 'from-slate-600 to-slate-700'} rounded-2xl shadow-xl flex-shrink-0 overflow-hidden flex items-center justify-center`}
                 >
-                  <span className="text-white font-black text-2xl">
-                    {exec.avatarInitial ?? exec.name[0]}
-                  </span>
+                  {(() => {
+                    const sd = EXEC_STATIC[exec.agentId]
+                    const av = ALL_AVATARS.find(a => a.key === exec.name)
+                    const Av = sd?.Avatar ?? av?.Component
+                    return Av ? <Av /> : <span className="text-white font-black text-2xl">{exec.avatarInitial ?? exec.name[0]}</span>
+                  })()}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -1216,67 +1324,116 @@ function ScreenTeam({ agentStore }: { agentStore: UseAgentsResult }) {
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {agents.map((agent, i) => {
-                const grad = roleGradient(agent.role)
+                const sd = EXEC_STATIC[agent.agentId]
+                const grad = agent.colorGradient ?? roleGradient(agent.role)
                 const isActive = agent.status === 'active' || (agent as any).isActive
                 const perf = agent.performance ?? Math.floor(Math.random() * 15 + 85)
                 const decisions = agent.decisionsToday ?? 0
+                const borderCls = sd?.border ?? 'border-slate-700/50'
+                const textCls   = sd?.text   ?? 'text-slate-400'
+                const Av = sd?.Avatar ?? ALL_AVATARS.find(a => a.key === agent.name)?.Component
+                const glowMap: Record<string, string> = {
+                  amber:'rgba(251,191,36,0.25)',  blue:'rgba(96,165,250,0.2)',
+                  cyan:'rgba(34,211,238,0.2)',     pink:'rgba(244,114,182,0.2)',
+                  green:'rgba(74,222,128,0.2)',    violet:'rgba(167,139,250,0.2)',
+                  fuchsia:'rgba(232,121,249,0.2)', orange:'rgba(251,146,60,0.2)',
+                  red:'rgba(248,113,113,0.2)',     indigo:'rgba(129,140,248,0.2)',
+                  sky:'rgba(56,189,248,0.2)',      teal:'rgba(45,212,191,0.2)',
+                  emerald:'rgba(52,211,153,0.2)',  slate:'rgba(148,163,184,0.15)',
+                  purple:'rgba(192,132,252,0.2)',  rose:'rgba(251,113,133,0.2)',
+                }
+                const glowColor = glowMap[grad.match(/from-(\w+)-/)?.[1] ?? ''] ?? 'rgba(148,163,184,0.15)'
                 return (
                   <motion.div
                     key={agent.agentId}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className={`group relative bg-slate-900 border ${isActive ? 'border-slate-700/50 hover:border-slate-600' : 'border-slate-800 opacity-60'} rounded-2xl p-4 transition-all`}
+                    className={`group relative bg-slate-900 border ${borderCls} ${!isActive ? 'opacity-60' : ''} rounded-2xl overflow-hidden transition-all`}
+                    style={{ boxShadow: `0 0 20px ${glowColor}` }}
                   >
-                    {/* Delete button — appears on hover */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(agent.agentId) }}
-                      className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-lg bg-red-500/10 hover:bg-red-500/25 flex items-center justify-center z-10"
-                      title="Remove agent"
+                    {/* Radial glow header band */}
+                    <div
+                      className="relative px-4 pt-4 pb-5 flex flex-col items-center"
+                      style={{ background: `radial-gradient(ellipse 120% 80% at 50% 0%, ${glowColor} 0%, transparent 70%)` }}
                     >
-                      <XCircleIcon className="w-3.5 h-3.5 text-red-400" />
-                    </button>
-
-                    {/* Clickable card body */}
-                    <button
-                      className="w-full text-left"
-                      onClick={() => setSelected(agent.agentId)}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className={`w-12 h-12 bg-gradient-to-br ${grad} rounded-xl flex items-center justify-center shadow-lg relative`}>
-                          <span className="text-white font-black text-base">
-                            {agent.avatarInitial ?? agent.name[0]?.toUpperCase()}
-                          </span>
-                          <div className="absolute -top-1 -right-1">
-                            <StatusDot status={agent.status} />
-                          </div>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors mt-1 mr-5" />
-                      </div>
-
-                      <p className="text-xs font-black text-slate-500 tracking-wider mb-0.5">
-                        {agent.role.toUpperCase()}
-                      </p>
-                      <p className="text-sm font-bold text-white mb-0.5">
-                        {agent.name}
-                      </p>
-                      <p className="text-xs text-slate-500 mb-3 truncate">
-                        {agent.specialty ?? (agent as any).description?.slice(0, 40) ?? agent.role}
-                      </p>
-
-                      <div className="flex items-center justify-between text-xs mb-2">
-                        <span className={`font-bold bg-gradient-to-r ${grad} bg-clip-text text-transparent`}>
-                          {perf}%
+                      {/* Role pill top-left + status top-right */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-900/60 ${textCls} border ${borderCls}`}>
+                          {agent.role.toUpperCase()}
                         </span>
-                        <span className="text-slate-500">{decisions} decisions</span>
+                        <span className={`flex items-center gap-1 text-[10px] font-bold ${isActive ? 'text-green-400' : 'text-slate-500'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-400' : 'bg-slate-600'}`} />
+                          {isActive ? 'Active' : 'Paused'}
+                        </span>
                       </div>
-                      <div className="w-full bg-slate-800 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 bg-gradient-to-r ${grad} rounded-full transition-all duration-700`}
-                          style={{ width: `${perf}%` }}
-                        />
+                      {/* Avatar */}
+                      <div className={`w-20 h-20 rounded-2xl overflow-hidden mt-7 shadow-xl shadow-black/40 border-2 ${borderCls} flex items-center justify-center bg-slate-800`}>
+                        {Av ? <Av /> : (
+                          <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${grad} text-white text-2xl font-black`}>
+                            {agent.avatarInitial ?? agent.name[0]?.toUpperCase()}
+                          </div>
+                        )}
                       </div>
-                    </button>
+                      {/* Name + title */}
+                      <div className="mt-2.5 text-center">
+                        <p className="text-sm font-black text-white leading-tight">{agent.name}</p>
+                        <p className={`text-[11px] font-semibold ${textCls} mt-0.5 leading-tight`}>
+                          {sd?.fullName ?? agent.displayName ?? agent.specialty ?? agent.role}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <div className="px-4 pt-3 pb-4 space-y-3">
+                      {/* Performance bar */}
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                          <span className="text-slate-500 font-semibold">Performance</span>
+                          <span className={`font-black ${textCls}`}>{perf}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-1.5">
+                          <div
+                            className={`h-1.5 bg-gradient-to-r ${grad} rounded-full transition-all duration-700`}
+                            style={{ width: `${perf}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Decisions today */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500">Decisions today</span>
+                        <span className={`font-black ${textCls}`}>{decisions}</span>
+                      </div>
+
+                      {/* Action row */}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => setSelected(agent.agentId)}
+                          className={`flex-1 text-[11px] font-bold py-1.5 rounded-xl border ${borderCls} ${textCls} bg-slate-800/50 hover:bg-slate-800 transition-colors`}
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => void setStatus(agent.agentId, agent.status === 'active' ? 'paused' : 'active')}
+                          className={`flex-1 text-[11px] font-bold py-1.5 rounded-xl transition-colors ${
+                            isActive
+                              ? 'border border-slate-700 text-slate-400 bg-slate-800/50 hover:bg-slate-800'
+                              : `border ${borderCls} ${textCls} bg-slate-800/50 hover:bg-slate-800`
+                          }`}
+                        >
+                          {isActive ? 'Pause' : 'Resume'}
+                        </button>
+                        {/* Delete */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(agent.agentId) }}
+                          className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/25 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border border-red-500/20"
+                          title="Remove agent"
+                        >
+                          <Trash2Icon className="w-3.5 h-3.5 text-red-400" />
+                        </button>
+                      </div>
+                    </div>
                   </motion.div>
                 )
               })}
@@ -1308,12 +1465,7 @@ function ScreenDecisions({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white">Decision Feed</h2>
-          <p className="text-sm text-slate-400">
-            Blockchain-verified · All decisions on-chain
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">Blockchain-verified · All decisions on-chain</p>
         <div className="flex items-center gap-2">
           <button className="w-9 h-9 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center hover:bg-slate-700 transition-colors">
             <SearchIcon className="w-4 h-4 text-slate-400" />
@@ -1443,18 +1595,19 @@ function ScreenDecisions({
 }
 function ScreenAnalytics() {
   const [period, setPeriod] = useState<TimePeriod>('week')
+  const [liveExecs, setLiveExecs] = useState(() => getLiveAnalyticsExecs())
+  useEffect(() => {
+    return subscribeAgentStore(() => setLiveExecs(getLiveAnalyticsExecs()))
+  }, [])
+  // Use live execs from org chart if available, fall back to static seed data for demo
+  const analyticsExecs = liveExecs.length > 0 ? liveExecs : executives
   const totalROI = roiData.reduce((s, d) => s + d.roi, 0)
   const totalDecisions = roiData.reduce((s, d) => s + d.decisions, 0)
   const totalTimeSaved = roiData.reduce((s, d) => s + d.timeSaved, 0)
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white">Analytics</h2>
-          <p className="text-sm text-slate-400">
-            Performance & ROI intelligence
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">Performance & ROI intelligence</p>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-1">
           {(['today', 'week', 'month', 'quarter'] as TimePeriod[]).map((p) => (
             <button
@@ -1554,7 +1707,7 @@ function ScreenAnalytics() {
         </p>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart
-            data={executives
+            data={analyticsExecs
               .filter((e) => e.decisions > 0)
               .map((e) => ({
                 name: e.role,
@@ -1606,7 +1759,7 @@ function ScreenAnalytics() {
           Executive Performance
         </p>
         <div className="space-y-2">
-          {executives
+          {analyticsExecs
             .filter((e) => e.status === 'active')
             .sort((a, b) => b.roi - a.roi)
             .map((exec) => (
@@ -1704,14 +1857,11 @@ function ScreenBeacons() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white">Guide Beacons</h2>
-          <p className="text-sm text-slate-400">
-            Edge AI hardware ·{' '}
-            {beacons.filter((b) => b.status === 'online').length} online ·{' '}
-            {beacons.filter((b) => b.status === 'offline').length} offline
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">
+          Edge AI hardware ·{' '}
+          {beacons.filter((b) => b.status === 'online').length} online ·{' '}
+          {beacons.filter((b) => b.status === 'offline').length} offline
+        </p>
         <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
           <PlusIcon className="w-4 h-4" /> Add Beacon
         </button>
@@ -1996,14 +2146,7 @@ function ScreenIndustries() {
   const IndIcon = ind.icon
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-black text-white">
-          Industry Configuration
-        </h2>
-        <p className="text-sm text-slate-400">
-          Pre-trained AI agents for your vertical
-        </p>
-      </div>
+      <p className="text-sm text-slate-400">Pre-trained AI agents for your vertical</p>
 
       {/* Industry selector */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -2104,10 +2247,7 @@ function ScreenIndustries() {
 function ScreenSettings() {
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-black text-white">Settings</h2>
-        <p className="text-sm text-slate-400">Configure your APEX platform</p>
-      </div>
+      <p className="text-sm text-slate-400">Configure your APEX platform</p>
 
       {[
         {
@@ -2280,6 +2420,28 @@ function ScreenSettings() {
     </div>
   )
 }
+// ─── Screen Subtitles ──────────────────────────────────────────────────────────
+const SCREEN_SUBTITLES: Partial<Record<Screen, string>> = {
+  dashboard:  'Live overview · Decisions · Agent activity',
+  team:       'Your AI executive team · Roles, status & performance',
+  board:      'AI-governed oversight · Deep intelligence · Full fiduciary authority',
+  personas:   'AI executive profiles · Voice, traits & LLM context prompts',
+  orgchart:   'Complete AI-staffed organization · Every position filled',
+  decisions:  'Pending items · Approvals · Escalations',
+  sessions:   'Board meeting transcripts · Decisions · Action items · On-chain records',
+  analytics:  'Performance metrics · ROI · Agent efficiency',
+  workflows:  'Every job position replaced by AI agents · Full org coverage',
+  rules:      'Detailed management instructions · Customization · Agent integration',
+  growth:     'AI-powered sales bots, marketing automation & client onboarding',
+  inbound:    'Unified communications · API auto-config · Relationship mapping',
+  comms:      'AI-powered podcast · social · PR · marketing',
+  voice:      'Speak to your AI C-Suite · Voice-first platform',
+  zello:      'Zello push-to-talk → Guide Beacon → APEX Engine',
+  beacons:    'Edge AI hardware · Task offload engine',
+  industries: 'Pre-integrated suite · Zero setup · Immediate value',
+  settings:   'Platform configuration · Integrations · Preferences',
+}
+
 // ─── Navigation ────────────────────────────────────────────────────────────────
 const navItems: {
   id: Screen
@@ -2294,12 +2456,18 @@ const navItems: {
     icon: SparklesIcon,
   },
   { id: 'dashboard', label: 'Dashboard', mobileLabel: 'Home', icon: HomeIcon },
-  { id: 'team', label: 'AI Team', mobileLabel: 'Team', icon: UsersIcon },
+  { id: 'team', label: 'Executives', mobileLabel: 'Team', icon: UsersIcon },
   {
     id: 'decisions',
     label: 'Decisions',
     mobileLabel: 'Decisions',
     icon: CheckCircleIcon,
+  },
+  {
+    id: 'sessions',
+    label: 'Sessions',
+    mobileLabel: 'Sessions',
+    icon: MicIcon,
   },
   {
     id: 'analytics',
@@ -2342,7 +2510,7 @@ const navItems: {
   },
   {
     id: 'personas',
-    label: 'AI Personas',
+    label: 'Personas',
     mobileLabel: 'Personas',
     icon: UsersIcon,
   },
@@ -2371,11 +2539,181 @@ const navItems: {
     icon: SettingsIcon,
   },
 ]
+// ─── Nested Sidebar Nav ────────────────────────────────────────────────────────
+const NAV_GROUPS: {
+  label: string
+  icon: React.ElementType
+  color: string
+  items: { id: Screen; label: string; icon: React.ElementType }[]
+}[] = [
+  {
+    label: 'Home',
+    icon: HomeIcon,
+    color: 'text-orange-400',
+    items: [
+      { id: 'dashboard',  label: 'Dashboard',    icon: HomeIcon        },
+      { id: 'setup',      label: 'Setup Wizard', icon: SparklesIcon    },
+      { id: 'analytics',  label: 'Analytics',    icon: BarChart3Icon   },
+      { id: 'decisions',  label: 'Decisions',    icon: CheckCircleIcon },
+    ],
+  },
+  {
+    label: 'AI Board',
+    icon: BuildingIcon,
+    color: 'text-cyan-400',
+    items: [
+      { id: 'board',    label: 'Board of Directors', icon: BuildingIcon },
+      { id: 'sessions', label: 'Sessions',            icon: MicIcon      },
+    ],
+  },
+  {
+    label: 'AI Team',
+    icon: UsersIcon,
+    color: 'text-amber-400',
+    items: [
+      { id: 'team',     label: 'Executives', icon: UsersIcon   },
+      { id: 'personas', label: 'Personas',   icon: UsersIcon   },
+      { id: 'orgchart', label: 'Org Chart',  icon: NetworkIcon },
+    ],
+  },
+  {
+    label: 'Operations',
+    icon: GitBranchIcon,
+    color: 'text-blue-400',
+    items: [
+      { id: 'workflows',  label: 'Workflows',           icon: GitBranchIcon  },
+      { id: 'rules',      label: 'Rules & Schema',      icon: ScrollTextIcon },
+      { id: 'growth',     label: 'Growth & Sales',      icon: RocketIcon     },
+      { id: 'inbound',    label: 'Inbound Intelligence', icon: DatabaseIcon  },
+    ],
+  },
+  {
+    label: 'Communications',
+    icon: RadioIcon,
+    color: 'text-purple-400',
+    items: [
+      { id: 'comms',   label: 'Communications', icon: RadioIcon },
+      { id: 'voice',   label: 'Voice Command',  icon: MicIcon   },
+      { id: 'zello',   label: 'Zello Bridge',   icon: RadioIcon },
+    ],
+  },
+  {
+    label: 'Platform',
+    icon: GlobeIcon,
+    color: 'text-teal-400',
+    items: [
+      { id: 'beacons',    label: 'Guide Beacons', icon: RadioIcon    },
+      { id: 'industries', label: 'Industries',    icon: GlobeIcon    },
+      { id: 'settings',   label: 'Settings',      icon: SettingsIcon },
+    ],
+  },
+]
+
+function NavSidebar({
+  screen,
+  setScreen,
+  pendingCount,
+}: {
+  screen: Screen
+  setScreen: (s: Screen) => void
+  pendingCount: number
+}) {
+  // Find which group contains the active screen
+  const activeGroupLabel = NAV_GROUPS.find(g => g.items.some(i => i.id === screen))?.label ?? ''
+  const [openGroup, setOpenGroup] = useState<string>(activeGroupLabel)
+
+  // Keep open group in sync when screen changes externally
+  useEffect(() => {
+    const g = NAV_GROUPS.find(g => g.items.some(i => i.id === screen))
+    if (g) setOpenGroup(g.label)
+  }, [screen])
+
+  return (
+    <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      {NAV_GROUPS.map((group) => {
+        const GroupIcon = group.icon
+        const isOpen = openGroup === group.label
+        const hasActive = group.items.some(i => i.id === screen)
+        return (
+          <div key={group.label}>
+            {/* Group header */}
+            <button
+              onClick={() => setOpenGroup(isOpen ? '' : group.label)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                hasActive
+                  ? `${group.color} bg-slate-800 border border-slate-700/80`
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <GroupIcon className={`w-4 h-4 flex-shrink-0 ${hasActive ? group.color : ''}`} />
+              <span className="flex-1 text-left">{group.label}</span>
+              {hasActive && (
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${group.color.replace('text-', 'bg-')}`} />
+              )}
+              <ChevronRightIcon
+                className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''} ${hasActive ? group.color : ''}`}
+              />
+            </button>
+
+            {/* Child items */}
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="ml-3 pl-3 border-l border-slate-700/60 mt-0.5 mb-1 space-y-0.5">
+                    {group.items.map((item) => {
+                      const ItemIcon = item.icon
+                      const isActive = screen === item.id
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setScreen(item.id)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                            isActive
+                              ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30 font-semibold'
+                              : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'
+                          }`}
+                        >
+                          <ItemIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                          {item.label}
+                          {item.id === 'decisions' && pendingCount > 0 && (
+                            <span className="ml-auto bg-orange-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
+                              {pendingCount}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )
+      })}
+    </nav>
+  )
+}
+
 // ─── Main Platform ─────────────────────────────────────────────────────────────
 export function ApexPlatform() {
   const [screen, setScreen] = useState<Screen>('dashboard')
   const { decisions: liveDecisions, pendingCount: decisionPendingCount, handleDecision } = useDecisions()
   const agentStore = useAgents()
+  // Exec agents from the live store — automatically reflects wizard setup and org chart toggles.
+  // Exclude board directors, moderator, worker, and advisor agents.
+  const NON_EXEC_PREFIXES = ['agent.board.', 'agent.worker.', 'agent.advisor.']
+  const coreAgents = agentStore.agents.filter(
+    (a) =>
+      a.agentId.startsWith('agent.exec.') &&
+      a.role !== 'moderator' &&
+      !NON_EXEC_PREFIXES.some((p) => a.agentId.startsWith(p))
+  )
   useEffect(() => {
     const handleZelloNav = (e: Event) => {
       const detail = (e as CustomEvent).detail
@@ -2400,34 +2738,26 @@ export function ApexPlatform() {
                 APEX
               </p>
               <p className="text-xs text-slate-500 leading-none">
-                AI Executive Platform
+                Your AI C-Suite · 24/7
               </p>
             </div>
           </div>
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = screen === item.id
-            return (
-              <button
-                key={item.id}
-                onClick={() => setScreen(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {item.label}
-                {item.id === 'decisions' && pendingCount > 0 && (
-                  <span className="ml-auto bg-orange-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </nav>
+        <NavSidebar screen={screen} setScreen={setScreen} pendingCount={pendingCount} />
+
+        {/* Status badges */}
+        <div className="px-4 py-3 border-t border-slate-800 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" />
+            <span className="text-xs font-bold text-green-400">{coreAgents.filter(a => a.status === 'active').length} Agents Active</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <motion.div animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1.4, repeat: Infinity }} className="w-2 h-2 bg-purple-400 rounded-full flex-shrink-0" />
+            <span className="text-xs font-bold text-purple-400">Video Ready</span>
+          </div>
+        </div>
 
         {/* User */}
         <div className="p-4 border-t border-slate-800">
@@ -2491,40 +2821,13 @@ export function ApexPlatform() {
         </header>
 
         {/* Desktop header */}
-        <header className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
-          <div>
-            <h1 className="text-lg font-black text-white">
-              {navItems.find((n) => n.id === screen)?.label}
-            </h1>
-            <p className="text-xs text-slate-500">
-              APEX · Your AI C-Suite. Running 24/7.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1.5">
-              <motion.div
-                animate={{
-                  opacity: [1, 0.3, 1],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                }}
-                className="w-2 h-2 bg-green-400 rounded-full"
-              />
-              <span className="text-xs font-bold text-green-400">
-                {agentStore.agents.filter(a => a.status === 'active').length} Agents Active
-              </span>
-            </div>
-            <button className="relative w-9 h-9 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center hover:bg-slate-700 transition-colors">
-              <BellIcon className="w-4 h-4 text-slate-400" />
-              {pendingCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-xs font-black text-white flex items-center justify-center">
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-          </div>
+        <header className="hidden lg:block px-6 py-4 border-b border-slate-800 flex-shrink-0">
+          <h1 className="text-xl font-black text-white leading-tight">
+            {navItems.find((n) => n.id === screen)?.label}
+          </h1>
+          {SCREEN_SUBTITLES[screen] && (
+            <p className="text-xs text-slate-500 mt-0.5">{SCREEN_SUBTITLES[screen]}</p>
+          )}
         </header>
 
         {/* Screen content */}
@@ -2532,32 +2835,20 @@ export function ApexPlatform() {
           <AnimatePresence mode="wait">
             <motion.div
               key={screen}
-              initial={{
-                opacity: 0,
-                y: 12,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                y: -8,
-              }}
-              transition={{
-                duration: 0.22,
-                ease: 'easeOut',
-              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
             >
               {screen === 'setup' && (
-                <ScreenSetup onComplete={() => setScreen('dashboard')} />
+                <ScreenSetup key="setup" onComplete={() => setScreen('dashboard')} />
               )}
               {screen === 'dashboard' && (
                 <ScreenDashboard
                   onNavigate={setScreen}
                   liveDecisions={liveDecisions}
                   onDecision={handleDecision}
-                  agents={agentStore.agents}
+                  agents={coreAgents}
                 />
               )}
               {screen === 'team' && <ScreenTeam agentStore={agentStore} />}
@@ -2578,6 +2869,7 @@ export function ApexPlatform() {
               {screen === 'rules' && <ScreenRules />}
               {screen === 'personas' && <ScreenPersonas />}
               {screen === 'board' && <ScreenBoardOfDirectors />}
+              {screen === 'sessions' && <ScreenSessions />}
               {screen === 'beacons' && <ScreenBeaconHub />}
               {screen === 'industries' && <ScreenIndustries />}
               {screen === 'settings' && <ScreenSettings />}

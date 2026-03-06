@@ -1631,15 +1631,7 @@ export function ScreenInboundComms() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-xl font-black text-white">
-            Inbound Intelligence
-          </h2>
-          <p className="text-sm text-slate-400">
-            Unified communications · API auto-config · Relationship mapping ·
-            AGI self-evaluation
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">Unified communications · API auto-config · Relationship mapping · AGI self-evaluation</p>
         <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1.5 flex-shrink-0">
           <LiveDot />
           <span className="text-xs font-bold text-green-400">

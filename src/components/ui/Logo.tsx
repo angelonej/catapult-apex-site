@@ -93,11 +93,11 @@ export function Logo({
 
         {/* Catapult Arm - Dynamic Launch Symbol */}
         <motion.g
+          style={{ transformOrigin: '30px 70px' }}
           initial={
           animated ?
           {
             rotate: -15,
-            transformOrigin: '30px 70px'
           } :
           undefined
           }

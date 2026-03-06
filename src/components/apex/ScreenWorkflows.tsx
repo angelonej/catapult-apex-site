@@ -595,14 +595,7 @@ export function ScreenWorkflows() {
   }, 0);
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-black text-white">
-          AI Workforce Workflows
-        </h2>
-        <p className="text-sm text-slate-400">
-          Every job position replaced by AI agents · Full org coverage
-        </p>
-      </div>
+      <p className="text-sm text-slate-400">Every job position replaced by AI agents · Full org coverage</p>
 
       {/* Industry selector */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

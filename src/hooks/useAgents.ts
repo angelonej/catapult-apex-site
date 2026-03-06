@@ -338,7 +338,6 @@ export function useCreateAgent(onSuccess: (agent: AgentConfig) => void): UseCrea
         capabilities: [],
         modelPolicy: { model: 'gpt-4o', maxTokens: 2048, temperature: 0.5 },
         limits: { maxRoundsPerMeeting: 3, maxConcurrentMeetings: 5, maxMemoWords: 800, callsPerMinute: 10 } as any,
-        isActive: true,
         status: 'active',
       }
 
@@ -515,7 +514,7 @@ function simulateMockMeeting(
   setComplete: React.Dispatch<React.SetStateAction<boolean>>,
   setMeeting: React.Dispatch<React.SetStateAction<MeetingMetadata | null>>,
 ) {
-  const companyId = import.meta.env.VITE_COMPANY_ID ?? 'dev-company'
+  const companyId = (import.meta as any).env?.VITE_COMPANY_ID ?? 'dev-company'
 
   setMeeting({
     meetingId,

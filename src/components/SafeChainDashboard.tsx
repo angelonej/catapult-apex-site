@@ -18,7 +18,7 @@ import {
   EyeOffIcon } from
 'lucide-react';
 // ─── On-Chain Data Categories ─────────────────────────────────────────────────
-const dataCategories = [
+const dataCategories: Array<{ icon: React.ElementType; title: string; badge: string; badgeColor: string; borderColor: string; bgGradient: string; iconGradient: string; items: string[]; footer: string; footerColor: string; dot?: string }> = [
 {
   icon: DollarSignIcon,
   title: 'Financial Records',

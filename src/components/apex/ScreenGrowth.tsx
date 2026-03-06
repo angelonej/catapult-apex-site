@@ -242,12 +242,7 @@ export function ScreenGrowth() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white">Growth & Sales</h2>
-          <p className="text-sm text-slate-400">
-            AI-powered sales bots, marketing automation & client onboarding
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">AI-powered sales bots, marketing automation & client onboarding</p>
         <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
           <PlusIcon className="w-4 h-4" /> New Bot
         </button>

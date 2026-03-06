@@ -9,13 +9,14 @@ import {
   GavelIcon,
   LockIcon,
   PlusIcon,
-  AlertTriangleIcon } from
+  Trash2Icon } from
 'lucide-react';
-import { useAgents, useCreateMeeting, useMeetingEvents } from '../../hooks/useAgents';
+import { useAgents } from '../../hooks/useAgents';
 import { usePersonas } from '../../hooks/usePersonas';
 import { localAgentStore } from '../../lib/localAgentStore';
 import { ROLE_META } from '../../lib/agentApi';
-import type { SessionType, SessionEvent } from '../../lib/agentApi';
+import { EXEC_STATIC } from './agentStatics';
+
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type BoardContext = 'catapult' | 'customer';
 type LLMOption = {
@@ -155,12 +156,16 @@ const DEFAULT_CATAPULT_IDS = [
   'agent.advisor.counsel',
 ];
 
-// Customer advisory board: exec directors who serve in an oversight/advisory capacity
-// (These are execs acting as board-level advisors for a client company)
+// Customer advisory board: independent directors + client-facing execs
+// Focused on customer outcomes, market strategy, and investor perspective
 const DEFAULT_CUSTOMER_IDS = [
-  'agent.board.chair', 'agent.exec.cfo', 'agent.exec.coo',
-  'agent.advisor.legal', 'agent.exec.cso', 'agent.exec.cdo',
-  'agent.exec.ciso',
+  'agent.board.chair',       // Independent Chair
+  'agent.board.customer',    // Customer Advisory Director
+  'agent.board.investor',    // Investor Director
+  'agent.board.strategy',    // Strategy Advisor
+  'agent.exec.cco',          // Chief Customer Officer
+  'agent.exec.cso',          // Chief Strategy Officer
+  'agent.exec.cro',          // Chief Revenue Officer
 ];
 
 // Storage keys for persisted custom rosters
@@ -221,49 +226,6 @@ function gradientToText(gradient: string): string {
   const match = gradient.match(/from-(\w+)-/);
   return `text-${match?.[1] ?? 'slate'}-400`;
 }
-// ─── Static recent resolutions ───────────────────────────────────────────────
-const recentResolutions = [
-{
-  id: 'r1',
-  title: 'Approved Q2 Capital Allocation — $2.4M AI Infrastructure',
-  votes: '7-0',
-  date: '2 days ago',
-  category: 'Finance',
-  color: 'text-blue-400',
-  bg: 'bg-blue-500/10',
-  border: 'border-blue-500/20'
-},
-{
-  id: 'r2',
-  title: 'Ratified AI Ethics Policy v3.2 — Responsible Deployment Standards',
-  votes: '8-0',
-  date: '5 days ago',
-  category: 'Governance',
-  color: 'text-fuchsia-400',
-  bg: 'bg-fuchsia-500/10',
-  border: 'border-fuchsia-500/20'
-},
-{
-  id: 'r3',
-  title: 'Authorized Phoenix Market Expansion — Phase 1 Greenlit',
-  votes: '6-1',
-  date: '1 week ago',
-  category: 'Strategy',
-  color: 'text-amber-400',
-  bg: 'bg-amber-500/10',
-  border: 'border-amber-500/20'
-},
-{
-  id: 'r4',
-  title: 'Adopted SOC 2 Type II Compliance Framework',
-  votes: '8-0',
-  date: '2 weeks ago',
-  category: 'Compliance',
-  color: 'text-cyan-400',
-  bg: 'bg-cyan-500/10',
-  border: 'border-cyan-500/20'
-}];
-
 // ─── LLM Dropdown ──────────────────────────────────────────────────────────────
 function LLMDropdown({
   value,
@@ -445,139 +407,113 @@ function BioAvatar({
 function BoardMemberCard({
   member,
   index,
-  onLLMChange
-
-
-
-
-}: {member: BoardMember;index: number;onLLMChange: (id: string, llm: string) => void;}) {
+  onLLMChange,
+  onRemove,
+}: {
+  member: BoardMember;
+  index: number;
+  onLLMChange: (id: string, llm: string) => void;
+  onRemove: () => void;
+}) {
   const llm = llmOptions.find((o) => o.id === member.llm) || llmOptions[0];
+
   return (
     <motion.div
-      initial={{
-        opacity: 0,
-        y: 16
-      }}
-      animate={{
-        opacity: 1,
-        y: 0
-      }}
-      transition={{
-        delay: index * 0.07,
-        duration: 0.4,
-        ease: [0.22, 1, 0.36, 1]
-      }}
-      className={`relative bg-gradient-to-br from-[#071428] to-[#0a1a35] border ${member.borderColor} rounded-2xl p-4 overflow-hidden`}
-      style={{
-        boxShadow: `0 0 25px ${member.glowColor}`
-      }}>
-
-      {/* Deep ocean shimmer bg */}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.07, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className={`group bg-slate-900 border ${member.borderColor} rounded-2xl overflow-hidden flex flex-col`}
+      style={{ boxShadow: `0 0 20px ${member.glowColor}` }}
+    >
+      {/* Colored header band */}
       <div
-        className="absolute inset-0 opacity-5 pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse 80% 60% at 50% 0%, ${member.glowColor} 0%, transparent 70%)`
-        }} />
-
-
-      {/* Chairman badge */}
-      {member.votingWeight > 1 &&
-      <div className="absolute top-3 right-3">
-          <span className="text-[9px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            Chair
+        className="relative px-4 pt-4 pb-5 flex flex-col items-center"
+        style={{ background: `radial-gradient(ellipse 120% 80% at 50% 0%, ${member.glowColor} 0%, transparent 70%)` }}
+      >
+        {/* Role pill top-left + status top-right */}
+        <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-900/60 ${member.textColor} border ${member.borderColor}`}>
+            {member.seat}
+          </span>
+          <span className={`flex items-center gap-1 text-[10px] font-bold ${member.status === 'active' ? 'text-green-400' : member.status === 'deliberating' ? 'text-amber-400' : 'text-slate-500'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${member.status === 'active' ? 'bg-green-400' : member.status === 'deliberating' ? 'bg-amber-400' : 'bg-slate-600'}`} />
+            {member.status === 'active' ? 'Active' : member.status === 'deliberating' ? 'Deliberating' : 'Recused'}
           </span>
         </div>
-      }
 
-      <div className="relative">
-        {/* Header */}
-        <div className="flex items-start gap-3 mb-3">
-          <BioAvatar member={member} size="md" />
-          <div className="flex-1 min-w-0 pt-0.5">
-            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-0.5">
-              {member.seat}
-            </p>
-            <p className="text-base font-black text-white leading-tight">
-              {member.name}
-            </p>
-            <p
-              className={`text-xs font-semibold ${member.textColor} leading-tight`}>
-
-              {member.role}
-            </p>
-            <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
-              {member.title}
-            </p>
-          </div>
-        </div>
-
-        {/* Expertise tags */}
-        <div className="flex flex-wrap gap-1 mb-3">
-          {member.expertise.map((e) =>
-          <span
-            key={e}
-            className="text-[10px] font-semibold text-slate-400 bg-white/5 border border-white/8 px-2 py-0.5 rounded-full">
-
-              {e}
+        {/* Chair badge */}
+        {member.votingWeight > 1 && (
+          <div className="absolute top-8 right-3">
+            <span className="text-[9px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Chair
             </span>
-          )}
-        </div>
-
-        {/* Metrics row */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <div className="bg-[#050d1a] rounded-xl p-2 text-center border border-white/5">
-            <p className={`text-sm font-black ${member.textColor}`}>
-              {member.decisions}
-            </p>
-            <p className="text-[9px] text-slate-600">Decisions</p>
           </div>
-          <div className="bg-[#050d1a] rounded-xl p-2 text-center border border-white/5">
-            <p className="text-sm font-black text-cyan-400">
-              {member.votingWeight}x
-            </p>
-            <p className="text-[9px] text-slate-600">Vote Weight</p>
-          </div>
-          <div className="bg-[#050d1a] rounded-xl p-2 text-center border border-white/5">
-            <p
-              className={`text-sm font-black ${member.status === 'active' ? 'text-cyan-400' : member.status === 'deliberating' ? 'text-amber-400' : 'text-slate-500'}`}>
+        )}
 
-              {member.status === 'active' ?
-              '●' :
-              member.status === 'deliberating' ?
-              '◐' :
-              '○'}
-            </p>
-            <p className="text-[9px] text-slate-600 capitalize">
-              {member.status}
-            </p>
-          </div>
-        </div>
+        {/* Avatar */}
+        {(() => {
+          const staticData = EXEC_STATIC[member.id];
+          const AvatarComp = staticData?.Avatar;
+          return (
+            <div className={`w-20 h-20 rounded-2xl overflow-hidden mt-7 shadow-xl shadow-black/40 border-2 ${member.borderColor}`}>
+              {AvatarComp
+                ? <AvatarComp />
+                : <div className={`w-full h-full flex items-center justify-center bg-slate-800`}>
+                    <span className={`text-2xl font-black ${member.textColor}`}>{member.name[0]}</span>
+                  </div>
+              }
+            </div>
+          );
+        })()}
 
-        {/* LLM Selector */}
-        <div>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-            <BrainIcon className="w-2.5 h-2.5" />
-            LLM Source
-          </p>
-          <LLMDropdown
-            value={member.llm}
-            onChange={(llmId) => onLLMChange(member.id, llmId)} />
-
+        {/* Name + role */}
+        <div className="mt-2.5 text-center">
+          <p className="text-sm font-black text-white leading-tight">{member.name}</p>
+          <p className={`text-[11px] font-semibold ${member.textColor} mt-0.5 leading-tight`}>{member.role}</p>
+          <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{member.title}</p>
         </div>
       </div>
-    </motion.div>);
 
+      {/* Body — flex-col so bottom content stays pinned */}
+      <div className="px-4 pt-3 pb-4 flex flex-col flex-1 gap-3">
+        {/* Expertise tags — grows to fill space */}
+        <div className="flex flex-wrap gap-1 flex-1 content-start">
+          {member.expertise.map((e) => (
+            <span key={e} className="text-[10px] font-semibold text-slate-400 bg-white/5 border border-white/8 px-2 py-0.5 rounded-full h-fit">
+              {e}
+            </span>
+          ))}
+        </div>
+
+        {/* Metrics row — always at bottom */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-slate-800/60 rounded-xl p-2 text-center border border-white/5">
+            <p className={`text-sm font-black ${member.textColor}`}>{member.decisions}</p>
+            <p className="text-[9px] text-slate-600">Decisions</p>
+          </div>
+          <div className="bg-slate-800/60 rounded-xl p-2 text-center border border-white/5">
+            <p className="text-sm font-black text-cyan-400">{member.votingWeight}x</p>
+            <p className="text-[9px] text-slate-600">Vote Weight</p>
+          </div>
+        </div>
+
+        {/* LLM badge + remove button — pinned to bottom */}
+        <div className="flex items-center gap-1.5">
+          <BrainIcon className="w-3 h-3 text-slate-600" />
+          <span className={`text-[11px] font-bold ${llm.color}`}>{llm.name}</span>
+          <span className="text-[10px] text-slate-600">{llm.provider}</span>
+          <button
+            onClick={onRemove}
+            title="Remove from board"
+            className="ml-auto w-7 h-7 rounded-xl bg-red-500/10 hover:bg-red-500/25 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border border-red-500/20"
+          >
+            <Trash2Icon className="w-3.5 h-3.5 text-red-400" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
-// ─── Session type options ──────────────────────────────────────────────────────
-
-const SESSION_TYPE_OPTIONS: { id: SessionType; label: string }[] = [
-  { id: 'board-session',    label: 'Board Session' },
-  { id: 'status-meeting',   label: 'Status Meeting' },
-  { id: 'planning-session', label: 'Planning Session' },
-  { id: 'crisis-session',   label: 'Crisis Triage' },
-  { id: 'hiring-session',   label: 'Hiring Session' },
-];
-
 // ─── Add Director Modal ──────────────────────────────────────────────────────
 function AddDirectorModal({
   allAgents,
@@ -684,71 +620,9 @@ function AddDirectorModal({
   );
 }
 
-// Phase label mapping
-const PHASE_LABELS: Record<string, string> = {
-  session_started:   'Phase 1 — Intake & Agent Resolution',
-  agent_thinking:    'Phase 2 — Memo Generation',
-  memo_posted:       'Phase 2 — Memo Ready',
-  rebuttal_thinking: 'Phase 2.5 — Rebuttal Round',
-  rebuttal_posted:   'Phase 2.5 — Rebuttal Ready',
-  critique_started:  'Phase 3 — Moderator Critique',
-  critique_complete: 'Phase 3 — Critique Complete',
-  decision_started:  'Phase 4 — Final Decision',
-  session_complete:  'Session Complete',
-  error:             'Error',
-};
-
-// ─── Session Event Feed ────────────────────────────────────────────────────────
-function EventFeed({ events }: { events: SessionEvent[] }) {
-  return (
-    <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-      <AnimatePresence initial={false}>
-        {events.map((evt, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.25 }}
-            className="flex items-start gap-2 text-xs"
-          >
-            <span
-              className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                evt.type === 'session_complete' ? 'bg-green-400' :
-                evt.type === 'error'            ? 'bg-red-400' :
-                evt.type.includes('thinking')   ? 'bg-amber-400 animate-pulse' :
-                                                  'bg-cyan-400'
-              }`}
-            />
-            <div className="min-w-0">
-              <span className="font-bold text-slate-300">
-                {PHASE_LABELS[evt.type] ?? evt.type}
-              </span>
-              {evt.agentName && (
-                <span className="text-slate-500 ml-1">· {evt.agentName}</span>
-              )}
-              {evt.type === 'memo_posted' && evt.data && 'confidence' in evt.data && (
-                <span className="ml-1 text-cyan-400">
-                  {(evt.data as { confidence: number }).confidence}% confidence
-                </span>
-              )}
-              {evt.type === 'session_complete' && evt.data && 'decision' in evt.data && (
-                <p className="text-green-400 mt-0.5 font-semibold">
-                  {(evt.data as { decision: string }).decision}
-                </p>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function ScreenBoardOfDirectors() {
   const [context, setContext] = useState<BoardContext>('catapult');
-  const [sessionType, setSessionType] = useState<SessionType>('board-session');
-  const [question, setQuestion] = useState('');
   const [addingDirector, setAddingDirector] = useState(false);
 
   // ── Persisted custom rosters ───────────────────────────────────────────────
@@ -766,12 +640,6 @@ export function ScreenBoardOfDirectors() {
   // ── Live data from stores ──────────────────────────────────────────────────
   const { agents } = useAgents();
   const { personas } = usePersonas();
-
-  // Meeting API hooks
-  const { run: runMeeting, meetingId, loading: starting, error: startError, reset: resetMeeting } = useCreateMeeting();
-  const { events, complete, polling } = useMeetingEvents(meetingId);
-
-  const sessionActive = Boolean(meetingId) && !complete;
 
   /** Map a live BoardAgent to the BoardMember shape used by the card UI */
   function agentToMember(agent: { agentId: string; name: string; role: string; status: 'active' | 'paused'; performance?: number; decisionsToday?: number; colorGradient?: string }): BoardMember {
@@ -821,118 +689,13 @@ export function ScreenBoardOfDirectors() {
     localAgentStore.updateAgent(agentId, { llmKey: llmId } as any);
   };
 
-  const handleCallToOrder = async () => {
-    if (sessionActive || starting) return;
-    const companyId = (import.meta as Record<string, Record<string,string>>).env?.VITE_COMPANY_ID ?? 'dev-company';
-    const agentIds = members
-      .filter((m) => m.status !== 'recused')
-      .map((m) => m.id); // m.id IS the agentId now
 
-    await runMeeting({
-      companyProfile: {
-        companyId,
-        name: context === 'catapult' ? 'Catapult Company' : 'Customer Company',
-      },
-      agentIds,
-      moderatorAgentId: 'agent.exec.moderator',
-      question: question.trim() || 'Provide a strategic board update and identify the top priority for this quarter.',
-      sessionType,
-      enableRebuttals: sessionType === 'board-session',
-    });
-  };
-
-  const handleAdjourn = () => {
-    resetMeeting();
-  };
-
-  const activeCount = members.filter((m) => m.status === 'active').length;
-  const deliberatingCount = members.filter(
-    (m) => m.status === 'deliberating'
-  ).length;
   const totalVotes = members.reduce((s, m) => s + m.votingWeight, 0);
-  const quorumMet =
-  activeCount + deliberatingCount >= Math.ceil(members.length * 0.6);
+  const quorumMet = members.filter((m) => m.status !== 'recused').length >= Math.ceil(members.length * 0.6);
   const totalDecisions = members.reduce((s, m) => s + m.decisions, 0);
+
   return (
     <div className="space-y-5">
-      {/* NEMO Header */}
-      <div
-        className="relative rounded-2xl overflow-hidden p-5 border border-cyan-500/20"
-        style={{
-          background:
-          'linear-gradient(135deg, #050d1a 0%, #071428 40%, #0a1e3d 100%)',
-          boxShadow: '0 0 40px rgba(6,182,212,0.08)'
-        }}>
-
-        {/* Bioluminescent background glow */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-            'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(6,182,212,0.06) 0%, transparent 70%)'
-          }} />
-
-        {/* Floating particles */}
-        {[...Array(6)].map((_, i) =>
-        <motion.div
-          key={i}
-          animate={{
-            y: [-4, 4, -4],
-            opacity: [0.3, 0.7, 0.3]
-          }}
-          transition={{
-            duration: 3 + i * 0.7,
-            repeat: Infinity,
-            delay: i * 0.5
-          }}
-          className="absolute w-1 h-1 rounded-full bg-cyan-400/40"
-          style={{
-            left: `${15 + i * 14}%`,
-            top: `${20 + i % 3 * 25}%`
-          }} />
-
-        )}
-
-        <div className="relative flex items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <motion.div
-                animate={{
-                  opacity: [0.6, 1, 0.6]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity
-                }}
-                className="w-2 h-2 rounded-full bg-cyan-400"
-                style={{
-                  boxShadow: '0 0 8px rgba(6,182,212,0.8)'
-                }} />
-
-              <p className="text-xs font-bold text-cyan-400 uppercase tracking-widest">
-                NEMO · Board Intelligence
-              </p>
-            </div>
-            <h2 className="text-2xl font-black text-white leading-tight mb-1">
-              Board of Directors
-            </h2>
-            <p className="text-sm text-slate-400">
-              AI-governed oversight · Deep intelligence · Full fiduciary
-              authority
-            </p>
-          </div>
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border border-cyan-500/30"
-            style={{
-              background: 'linear-gradient(135deg, #071428, #0a1e3d)',
-              boxShadow: '0 0 20px rgba(6,182,212,0.15)'
-            }}>
-
-            <UsersIcon className="w-7 h-7 text-cyan-400" />
-          </div>
-        </div>
-      </div>
-
       {/* Context Switcher */}
       <div
         className="flex p-1 rounded-xl gap-1 border border-cyan-500/15"
@@ -980,179 +743,30 @@ export function ScreenBoardOfDirectors() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div
           className="rounded-2xl p-4 border border-cyan-500/15 text-center"
-          style={{
-            background: 'linear-gradient(135deg, #071428, #0a1a35)'
-          }}>
-
+          style={{ background: 'linear-gradient(135deg, #071428, #0a1a35)' }}>
           <p className="text-2xl font-black text-cyan-400">{members.length}</p>
           <p className="text-xs text-slate-500 mt-0.5">Board Seats</p>
         </div>
         <div
           className={`rounded-2xl p-4 border text-center ${quorumMet ? 'border-green-500/20' : 'border-red-500/20'}`}
-          style={{
-            background: 'linear-gradient(135deg, #071428, #0a1a35)'
-          }}>
-
-          <p
-            className={`text-2xl font-black ${quorumMet ? 'text-green-400' : 'text-red-400'}`}>
-
+          style={{ background: 'linear-gradient(135deg, #071428, #0a1a35)' }}>
+          <p className={`text-2xl font-black ${quorumMet ? 'text-green-400' : 'text-red-400'}`}>
             {quorumMet ? '✓' : '✗'}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">Quorum</p>
         </div>
         <div
           className="rounded-2xl p-4 border border-cyan-500/15 text-center"
-          style={{
-            background: 'linear-gradient(135deg, #071428, #0a1a35)'
-          }}>
-
-          <p className="text-2xl font-black text-amber-400">
-            {totalDecisions.toLocaleString()}
-          </p>
+          style={{ background: 'linear-gradient(135deg, #071428, #0a1a35)' }}>
+          <p className="text-2xl font-black text-amber-400">{totalDecisions.toLocaleString()}</p>
           <p className="text-xs text-slate-500 mt-0.5">Resolutions</p>
         </div>
         <div
           className="rounded-2xl p-4 border border-cyan-500/15 text-center"
-          style={{
-            background: 'linear-gradient(135deg, #071428, #0a1a35)'
-          }}>
-
+          style={{ background: 'linear-gradient(135deg, #071428, #0a1a35)' }}>
           <p className="text-2xl font-black text-violet-400">{totalVotes}</p>
           <p className="text-xs text-slate-500 mt-0.5">Total Votes</p>
         </div>
-      </div>
-
-      {/* Board Session Banner */}
-      <div
-        className={`rounded-2xl p-4 border transition-all ${sessionActive ? 'border-cyan-400/40' : 'border-cyan-500/15'}`}
-        style={{
-          background: sessionActive ?
-          'linear-gradient(135deg, #071e38, #0a2545)' :
-          'linear-gradient(135deg, #071428, #0a1a35)',
-          boxShadow: sessionActive ? '0 0 30px rgba(6,182,212,0.12)' : 'none'
-        }}>
-
-        {/* Header row */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center border border-cyan-500/30 flex-shrink-0"
-              style={{
-                background: '#071428'
-              }}>
-
-              <GavelIcon className="w-5 h-5 text-cyan-400" />
-            </div>
-            <div>
-              <p className="text-sm font-black text-white">
-                {sessionActive ? 'Board Session In Progress' : complete ? 'Session Complete' : 'Board Session'}
-              </p>
-              <p className="text-xs text-slate-400">
-                {sessionActive ?
-                `${activeCount} directors present · ${deliberatingCount} deliberating · Quorum ${quorumMet ? 'met' : 'not met'}` :
-                complete ?
-                'Session adjourned · Decision recorded on-chain' :
-                `${members.length} directors seated · Click to call to order`}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={sessionActive || complete ? handleAdjourn : handleCallToOrder}
-            disabled={starting}
-            className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl border transition-all flex-shrink-0 disabled:opacity-50 ${
-              sessionActive || complete
-                ? 'bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30'
-                : 'border-cyan-500/30 text-cyan-400 hover:border-cyan-400/50'
-            }`}
-            style={
-            !sessionActive && !complete ?
-            {
-              background: 'linear-gradient(135deg, #071428, #0d2040)'
-            } :
-            {}
-            }>
-
-            {starting ? (
-              <><span className="w-3.5 h-3.5 border-2 border-cyan-400/40 border-t-cyan-400 rounded-full animate-spin" /> Summoning…</>
-            ) : sessionActive ? (
-              <><AlertTriangleIcon className="w-3.5 h-3.5" /> Adjourn</>
-            ) : complete ? (
-              <><AlertTriangleIcon className="w-3.5 h-3.5" /> New Session</>
-            ) : (
-              <><GavelIcon className="w-3.5 h-3.5" /> Call to Order</>
-            )}
-          </button>
-        </div>
-
-        {/* Question + session type config (shown when idle) */}
-        {!sessionActive && !complete && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-3 pt-3 border-t border-cyan-500/15 space-y-2"
-          >
-            <div className="flex gap-2 flex-wrap">
-              {SESSION_TYPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setSessionType(opt.id)}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
-                    sessionType === opt.id
-                      ? 'border-cyan-400/40 text-cyan-400'
-                      : 'border-white/10 text-slate-500 hover:text-white hover:border-white/20'
-                  }`}
-                  style={{ background: '#050d1a' }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Strategic question for the board… (optional)"
-              rows={2}
-              className="w-full bg-[#050d1a] border border-cyan-500/20 rounded-xl px-3 py-2 text-sm text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400/40 resize-none"
-            />
-            {startError && (
-              <p className="text-xs text-red-400">⚠ {startError}</p>
-            )}
-          </motion.div>
-        )}
-
-        {/* Live event feed (shown during session or when complete) */}
-        {(sessionActive || complete) && events.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mt-3 pt-3 border-t border-cyan-500/15"
-          >
-            {/* Director roll call */}
-            <div className="flex items-center gap-2 flex-wrap mb-3">
-              {members.map((m) =>
-              <div
-                key={m.id}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${m.status === 'active' ? 'border-cyan-500/30 text-cyan-400' : m.status === 'deliberating' ? 'border-amber-500/30 text-amber-400' : 'border-slate-700 text-slate-500'}`}
-                style={{
-                  background: '#050d1a'
-                }}>
-
-                  <span
-                className={`w-1.5 h-1.5 rounded-full ${m.status === 'active' ? 'bg-cyan-400' : m.status === 'deliberating' ? 'bg-amber-400' : 'bg-slate-600'}`} />
-
-                  {m.name}
-                </div>
-              )}
-            </div>
-            {/* Phase feed */}
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-              {polling ? 'Live · Polling for updates…' : 'Session Log'}
-            </p>
-            <EventFeed events={events} />
-          </motion.div>
-        )}
       </div>
 
       {/* Global LLM Config */}
@@ -1241,29 +855,21 @@ export function ScreenBoardOfDirectors() {
             </div>
             <button
               onClick={() => setAddingDirector(true)}
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border border-cyan-500/20 text-cyan-400 transition-all hover:border-cyan-400/40 hover:bg-cyan-500/5"
-              style={{
-                background: '#050d1a'
-              }}>
-
-              <PlusIcon className="w-3.5 h-3.5" /> Add Director
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors"
+            >
+              <PlusIcon className="w-4 h-4" /> Add Director
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {members.map((member, i) =>
-            <div key={member.id} className="relative group/card">
               <BoardMemberCard
+                key={member.id}
                 member={member}
                 index={i}
-                onLLMChange={handleLLMChange} />
-              {/* Remove director button — hover reveal */}
-              <button
-                onClick={() => handleRemoveDirector(member.id)}
-                title="Remove from board"
-                className="absolute top-2 left-2 z-10 w-5 h-5 rounded-full bg-red-500/80 text-white text-xs font-black leading-none flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-red-500"
-              >×</button>
-            </div>
+                onLLMChange={handleLLMChange}
+                onRemove={() => handleRemoveDirector(member.id)}
+              />
             )}
           </div>
         </motion.div>
@@ -1280,62 +886,6 @@ export function ScreenBoardOfDirectors() {
           />
         )}
       </AnimatePresence>
-
-      {/* Recent Resolutions */}
-      <div
-        className="rounded-2xl p-4 border border-cyan-500/15"
-        style={{
-          background: 'linear-gradient(135deg, #071428, #0a1a35)'
-        }}>
-
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <GavelIcon className="w-4 h-4 text-cyan-400" />
-            <p className="text-sm font-bold text-white">Recent Resolutions</p>
-          </div>
-          <span className="text-xs text-slate-500">All on-chain verified</span>
-        </div>
-        <div className="space-y-2">
-          {recentResolutions.map((r, i) =>
-          <motion.div
-            key={r.id}
-            initial={{
-              opacity: 0,
-              x: -8
-            }}
-            animate={{
-              opacity: 1,
-              x: 0
-            }}
-            transition={{
-              delay: i * 0.06
-            }}
-            className={`flex items-start gap-3 p-3 rounded-xl border ${r.bg} ${r.border}`}>
-
-              <CheckCircleIcon
-              className={`w-4 h-4 flex-shrink-0 mt-0.5 ${r.color}`} />
-
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-white font-semibold leading-snug">
-                  {r.title}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-xs font-black ${r.color}`}>
-                    {r.category}
-                  </span>
-                  <span className="text-xs text-slate-500">·</span>
-                  <span className="text-xs text-slate-500">
-                    Vote: {r.votes}
-                  </span>
-                  <span className="text-xs text-slate-500">·</span>
-                  <span className="text-xs text-slate-600">{r.date}</span>
-                </div>
-              </div>
-              <LockIcon className="w-3.5 h-3.5 text-green-400/60 flex-shrink-0 mt-0.5" />
-            </motion.div>
-          )}
-        </div>
-      </div>
 
       {/* NEMO Attribution */}
       <div

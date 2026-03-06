@@ -1,4 +1,4 @@
-import React, { useState, Component } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ActivityIcon,
@@ -23,72 +23,30 @@ import {
   ShieldIcon,
   StarIcon } from
 'lucide-react';
-// ─── Data ──────────────────────────────────────────────────────────────────────
-const aiExecutives = [
-{
-  id: 'ceo-001',
-  role: 'CEO',
-  name: 'Aria',
-  fullName: 'Growth & Leadership AI',
-  status: 'active',
-  performance: 94,
-  decisionsToday: 23,
-  cost: 499,
-  roi: 2847,
-  uptime: '99.8%',
-  color: 'from-amber-400 to-amber-600',
-  text: 'text-amber-400',
-  bg: 'bg-amber-500/20',
-  border: 'border-amber-500/40'
-},
-{
-  id: 'cfo-001',
-  role: 'CFO',
-  name: 'Felix',
-  fullName: 'Financial Strategy AI',
-  status: 'active',
-  performance: 91,
-  decisionsToday: 47,
-  cost: 499,
-  roi: 3241,
-  uptime: '99.9%',
-  color: 'from-blue-400 to-blue-600',
-  text: 'text-blue-400',
-  bg: 'bg-blue-500/20',
-  border: 'border-blue-500/40'
-},
-{
-  id: 'coo-001',
-  role: 'COO',
-  name: 'Orion',
-  fullName: 'Operations Excellence AI',
-  status: 'active',
-  performance: 88,
-  decisionsToday: 156,
-  cost: 499,
-  roi: 4102,
-  uptime: '99.7%',
-  color: 'from-green-400 to-green-600',
-  text: 'text-green-400',
-  bg: 'bg-green-500/20',
-  border: 'border-green-500/40'
-},
-{
-  id: 'cmo-001',
-  role: 'CMO',
-  name: 'Maya',
-  fullName: 'Growth Marketing AI',
-  status: 'paused',
-  performance: 85,
-  decisionsToday: 0,
-  cost: 0,
-  roi: 0,
-  uptime: '0%',
-  color: 'from-pink-400 to-pink-600',
-  text: 'text-pink-400',
-  bg: 'bg-pink-500/20',
-  border: 'border-pink-500/40'
-}];
+import { localAgentStore, subscribeAgentStore } from '../lib/localAgentStore';
+// ─── Role color metadata (matches ScreenOrgChart ROLE_META) ──────────────────
+const ROLE_COLORS: Record<string, { color: string; text: string; bg: string; border: string }> = {
+  ceo:  { color: 'from-amber-400 to-amber-600',   text: 'text-amber-400',   bg: 'bg-amber-500/20',   border: 'border-amber-500/40'   },
+  cfo:  { color: 'from-blue-400 to-blue-600',     text: 'text-blue-400',    bg: 'bg-blue-500/20',    border: 'border-blue-500/40'    },
+  coo:  { color: 'from-green-400 to-green-600',   text: 'text-green-400',   bg: 'bg-green-500/20',   border: 'border-green-500/40'   },
+  cmo:  { color: 'from-pink-400 to-pink-600',     text: 'text-pink-400',    bg: 'bg-pink-500/20',    border: 'border-pink-500/40'    },
+  cto:  { color: 'from-purple-400 to-purple-600', text: 'text-purple-400',  bg: 'bg-purple-500/20',  border: 'border-purple-500/40'  },
+  clo:  { color: 'from-cyan-400 to-cyan-600',     text: 'text-cyan-400',    bg: 'bg-cyan-500/20',    border: 'border-cyan-500/40'    },
+  chro: { color: 'from-rose-400 to-rose-600',     text: 'text-rose-400',    bg: 'bg-rose-500/20',    border: 'border-rose-500/40'    },
+  cso:  { color: 'from-orange-400 to-orange-600', text: 'text-orange-400',  bg: 'bg-orange-500/20',  border: 'border-orange-500/40'  },
+  cro:  { color: 'from-red-400 to-rose-600',      text: 'text-red-400',     bg: 'bg-red-500/20',     border: 'border-red-500/40'     },
+  cpo:  { color: 'from-indigo-400 to-violet-600', text: 'text-indigo-400',  bg: 'bg-indigo-500/20',  border: 'border-indigo-500/40'  },
+  cdo:  { color: 'from-sky-400 to-cyan-600',      text: 'text-sky-400',     bg: 'bg-sky-500/20',     border: 'border-sky-500/40'     },
+  ciso: { color: 'from-slate-400 to-gray-600',    text: 'text-slate-400',   bg: 'bg-slate-500/20',   border: 'border-slate-500/40'   },
+  cco:  { color: 'from-teal-400 to-emerald-600',  text: 'text-teal-400',    bg: 'bg-teal-500/20',    border: 'border-teal-500/40'    },
+};
+const DEFAULT_COLORS = { color: 'from-slate-500 to-slate-700', text: 'text-slate-400', bg: 'bg-slate-500/20', border: 'border-slate-500/40' };
+
+function getLiveExecs() {
+  return localAgentStore.getAll().filter(
+    (a) => a.agentId.startsWith('agent.exec.') && a.role !== 'moderator'
+  );
+}
 
 const recentDecisions = [
 {
@@ -214,35 +172,55 @@ function ImpactBadge({ impact }: {impact: string;}) {
 }
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function AdminDashboard() {
-  const [selectedExec, setSelectedExec] = useState(aiExecutives[0]);
-  const [decisions, setDecisions] = useState(recentDecisions);
-  const [execStates, setExecStates] = useState<
-    Record<string, 'active' | 'paused'>>(
+  // Live agent roster — stays in sync with org chart toggles
+  const [liveAgents, setLiveAgents] = useState(() => getLiveExecs());
+  useEffect(() => {
+    return subscribeAgentStore(() => setLiveAgents(getLiveExecs()));
+  }, []);
 
-    Object.fromEntries(
-      aiExecutives.map((e) => [e.id, e.status as 'active' | 'paused'])
-    )
-  );
+  const aiExecutives = liveAgents.map((a) => {
+    const c = ROLE_COLORS[a.role] ?? DEFAULT_COLORS;
+    return {
+      id: a.agentId,
+      role: a.role.toUpperCase(),
+      name: a.name,
+      fullName: a.displayName ?? a.specialty ?? a.role,
+      status: a.status ?? 'active',
+      performance: a.performance ?? 90,
+      decisionsToday: a.decisionsToday ?? 0,
+      cost: 499,
+      roi: a.roiToday ?? 0,
+      uptime: a.uptime != null ? `${a.uptime}%` : '99%',
+      ...c,
+    };
+  });
+
+  const [selectedExec, setSelectedExec] = useState(() => aiExecutives[0]);
+  // Keep selectedExec in sync when roster changes
+  useEffect(() => {
+    setSelectedExec(prev =>
+      aiExecutives.find(e => e.id === prev?.id) ?? aiExecutives[0]
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveAgents]);
+
+  const [decisions, setDecisions] = useState(recentDecisions);
   const toggleExec = (id: string) => {
-    setExecStates((prev) => ({
-      ...prev,
-      [id]: prev[id] === 'active' ? 'paused' : 'active'
-    }));
+    const agent = localAgentStore.getAll().find(a => a.agentId === id);
+    if (agent) {
+      const next = agent.status === 'active' ? 'paused' : 'active';
+      localAgentStore.updateAgent(id, { status: next });
+    }
   };
   const handleDecision = (id: number, action: 'approved' | 'rejected') => {
     setDecisions((prev) =>
     prev.map((d) =>
-    d.id === id ?
-    {
-      ...d,
-      status: action
-    } :
-    d
-    )
-    );
+    d.id === id ? { ...d, status: action } : d
+    ));
   };
   const pendingCount = decisions.filter((d) => d.status === 'pending').length;
   const totalROI = aiExecutives.reduce((s, e) => s + e.roi, 0);
+  const activeCount = aiExecutives.filter(e => e.status === 'active').length;
   return (
     <div className="min-h-screen w-full bg-slate-950 text-white">
       {/* Header */}
@@ -288,7 +266,7 @@ export function AdminDashboard() {
                 }}
                 className="w-2 h-2 bg-green-400 rounded-full" />
 
-              <span className="text-xs font-bold text-green-400">3 Active</span>
+              <span className="text-xs font-bold text-green-400">{activeCount} Active</span>
             </div>
             <button
               onClick={() => {
@@ -372,7 +350,7 @@ export function AdminDashboard() {
                     AI Executive Team
                   </h2>
                   <p className="text-xs text-slate-500">
-                    3 active · 1 paused · 0 errors
+                    {activeCount} active · {aiExecutives.length - activeCount} paused · 0 errors
                   </p>
                 </div>
                 <button className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-2 rounded-xl transition-colors">
@@ -382,7 +360,7 @@ export function AdminDashboard() {
 
               <div className="space-y-3">
                 {aiExecutives.map((exec, i) => {
-                  const isActive = execStates[exec.id] === 'active';
+                  const isActive = exec.status === 'active';
                   const isSelected = selectedExec.id === exec.id;
                   return (
                     <motion.div
@@ -632,7 +610,7 @@ export function AdminDashboard() {
                     {selectedExec.name[0]}
                   </span>
                   <div className="absolute -top-0.5 -right-0.5">
-                    <StatusDot status={execStates[selectedExec.id]} />
+                    <StatusDot status={selectedExec?.status ?? 'active'} />
                   </div>
                 </div>
                 <div>

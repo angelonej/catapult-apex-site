@@ -31,6 +31,7 @@ import {
   ScanCommand,
   PutCommand,
   DeleteCommand,
+  GetCommand,
 } from '@aws-sdk/lib-dynamodb'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -99,6 +100,37 @@ async function ensureTable(): Promise<void> {
       throw err
     }
   }
+}
+
+// ─── Company setup helpers ──────────────────────────────────────────────────
+
+const COMPANY_ID = 'default'
+
+async function saveCompanySetup(setup: Record<string, unknown>): Promise<void> {
+  await doc.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        PK: `COMPANY#${COMPANY_ID}`,
+        SK: 'SETUP',
+        ...setup,
+        companyId: COMPANY_ID,
+        updatedAt: new Date().toISOString(),
+      },
+    }),
+  )
+}
+
+async function getCompanySetup(): Promise<unknown | null> {
+  const { Item } = await doc.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `COMPANY#${COMPANY_ID}`, SK: 'SETUP' },
+    }),
+  )
+  if (!Item) return null
+  const { PK: _pk, SK: _sk, ...rest } = Item
+  return rest
 }
 
 // ─── Board agent helpers ──────────────────────────────────────────────────────
@@ -213,6 +245,22 @@ const server = http.createServer(async (req, res) => {
       const agentId = decodeURIComponent(deleteMatch[1])
       await deleteBoardAgent(agentId)
       json(res, 200, { success: true, agentId })
+      return
+    }
+
+    // GET /company-setup
+    if (method === 'GET' && url === '/company-setup') {
+      const setup = await getCompanySetup()
+      json(res, 200, { success: true, setup })
+      return
+    }
+
+    // POST /company-setup
+    if (method === 'POST' && url === '/company-setup') {
+      const raw = await readBody(req)
+      const setup = JSON.parse(raw) as Record<string, unknown>
+      await saveCompanySetup(setup)
+      json(res, 201, { success: true, setup })
       return
     }
 

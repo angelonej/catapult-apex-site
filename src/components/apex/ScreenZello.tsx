@@ -1411,19 +1411,13 @@ export function ScreenZello() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/30">
               <RadioIcon className="w-4 h-4 text-white" />
             </div>
-            <h2 className="text-xl font-black text-white">Zello Bridge</h2>
-            <span className="text-xs font-bold text-green-400 bg-green-500/20 border border-green-500/30 px-2 py-0.5 rounded-full">
-              PTT
-            </span>
+            <span className="text-xs font-bold text-green-400 bg-green-500/20 border border-green-500/30 px-2 py-0.5 rounded-full">PTT</span>
+            <p className="text-sm text-slate-400">Zello push-to-talk → Guide Beacon → APEX Engine · Field voice becomes AI action</p>
           </div>
-          <p className="text-sm text-slate-400">
-            Zello push-to-talk → Guide Beacon capture → APEX Engine · Field
-            voice becomes AI action
-          </p>
         </div>
       </div>
 

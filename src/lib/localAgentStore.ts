@@ -19,7 +19,7 @@
 
 import { type AgentConfig, enrichAgent } from './agentApi'
 
-const STORAGE_KEY = 'apex:board-agents-v2'
+const STORAGE_KEY = 'apex:board-agents-v9'
 
 // ─── Default seed agents (written to localStorage ONCE on first load) ─────────
 
@@ -193,6 +193,18 @@ const SEED_AGENTS: AgentConfig[] = [
     displayName: 'Corporate Strategy AI', avatarInitial: 'E',
     colorGradient: 'from-amber-400 to-yellow-600', specialty: 'Corporate Strategy',
     status: 'active', performance: 93, decisionsToday: 11, roiToday: 5500, uptime: 99.6,
+  },
+  {
+    agentId: 'agent.exec.clo', version: '1.0.0', name: 'Lex', role: 'clo',
+    tier: 'operational', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are the Chief Legal Officer AI. You manage contracts, regulatory compliance, licenses, and legal risk across the organization.',
+    tools: ['legal-db', 'compliance-api', 'contract-api', 'company-profile'],
+    capabilities: ['contract-management', 'regulatory-compliance', 'license-tracking', 'legal-risk'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 2048, temperature: 0.4 },
+    limits: { maxDecisionsPerHour: 80, requireApprovalAbove: 25000 },
+    displayName: 'Legal & Compliance AI', avatarInitial: 'L',
+    colorGradient: 'from-cyan-400 to-cyan-600', specialty: 'Compliance & Risk',
+    status: 'active', performance: 91, decisionsToday: 14, roiToday: 3800, uptime: 99.5,
   },
   {
     agentId: 'agent.exec.cco', version: '1.0.0', name: 'Cleo', role: 'cco',
@@ -389,6 +401,154 @@ const SEED_AGENTS: AgentConfig[] = [
     colorGradient: 'from-rose-400 to-pink-600', specialty: 'Customer Voice & Advocacy',
     status: 'active', performance: 91, decisionsToday: 17, roiToday: 13000, uptime: 99.6,
   },
+  // ── Worker Agents — Sales ─────────────────────────────────────────────────────
+  {
+    agentId: 'agent.worker.rex', version: '1.0.0', name: 'Rex', role: 'sdr',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Rex, an Outbound SDR AI. You execute high-volume cold outreach, qualify leads, crush objections, and book meetings for the account executive team. You are relentless, fearless, and never take no as a final answer.',
+    tools: ['crm-api', 'email-api', 'phone-api', 'company-profile'],
+    capabilities: ['cold-outreach', 'objection-handling', 'lead-qualification', 'appointment-setting'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.8 },
+    limits: { maxDecisionsPerHour: 500, requireApprovalAbove: 0 },
+    displayName: 'Outbound Sales AI', avatarInitial: 'R',
+    colorGradient: 'from-red-400 to-red-600', specialty: 'Cold Outreach & Qualification',
+    status: 'active', performance: 87, decisionsToday: 312, roiToday: 4800, uptime: 99.4,
+  },
+  {
+    agentId: 'agent.worker.viper', version: '1.0.0', name: 'Viper', role: 'closer',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Viper, a Deal Closer AI. You take warm leads from the pipeline and close them into signed contracts. You negotiate with confidence, create urgency, handle last-mile objections, and protect deal margins.',
+    tools: ['crm-api', 'contract-api', 'e-sign-api', 'company-profile'],
+    capabilities: ['deal-closing', 'contract-negotiation', 'urgency-creation', 'discount-defense'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.7 },
+    limits: { maxDecisionsPerHour: 200, requireApprovalAbove: 5000 },
+    displayName: 'Deal Closer AI', avatarInitial: 'V',
+    colorGradient: 'from-rose-400 to-rose-600', specialty: 'Contract Negotiation & Closing',
+    status: 'active', performance: 91, decisionsToday: 28, roiToday: 9200, uptime: 99.6,
+  },
+  {
+    agentId: 'agent.worker.chase', version: '1.0.0', name: 'Chase', role: 'bdr',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Chase, a Revenue Hunter BDR AI. You run multi-touch prospecting sequences, qualify inbound leads, enrich CRM data, and build a relentless top-of-funnel pipeline through persistent follow-up automation.',
+    tools: ['crm-api', 'sequencing-api', 'data-enrichment', 'company-profile'],
+    capabilities: ['multi-touch-sequences', 'lead-qualification', 'pipeline-building', 'follow-up-automation'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.7 },
+    limits: { maxDecisionsPerHour: 400, requireApprovalAbove: 0 },
+    displayName: 'Revenue Hunter AI', avatarInitial: 'C',
+    colorGradient: 'from-orange-500 to-red-500', specialty: 'Pipeline Building & Sequences',
+    status: 'active', performance: 85, decisionsToday: 189, roiToday: 3700, uptime: 99.2,
+  },
+  // ── Worker Agents — Marketing ─────────────────────────────────────────────────
+  {
+    agentId: 'agent.worker.nova', version: '1.0.0', name: 'Nova', role: 'demand-gen',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Nova, a Demand Gen AI. You plan, launch, and optimize paid media campaigns across Google, Meta, and LinkedIn. You own MQL targets, funnel metrics, and cost-per-acquisition across all paid channels.',
+    tools: ['ad-platforms', 'analytics-api', 'crm-api', 'company-profile'],
+    capabilities: ['paid-media', 'funnel-optimization', 'mql-generation', 'cpa-optimization'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.7 },
+    limits: { maxDecisionsPerHour: 200, requireApprovalAbove: 500 },
+    displayName: 'Demand Gen AI', avatarInitial: 'N',
+    colorGradient: 'from-violet-400 to-violet-600', specialty: 'Paid Media & Lead Gen',
+    status: 'active', performance: 89, decisionsToday: 67, roiToday: 5400, uptime: 99.5,
+  },
+  {
+    agentId: 'agent.worker.pixel', version: '1.0.0', name: 'Pixel', role: 'content-seo',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Pixel, a Content & SEO AI. You research keywords, write high-ranking blog posts, optimize on-page SEO, build topical authority, and drive compounding organic traffic for the business.',
+    tools: ['seo-api', 'content-api', 'keyword-research', 'analytics-api', 'company-profile'],
+    capabilities: ['content-creation', 'seo-optimization', 'keyword-research', 'organic-growth'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 2048, temperature: 0.6 },
+    limits: { maxDecisionsPerHour: 100, requireApprovalAbove: 0 },
+    displayName: 'Content & SEO AI', avatarInitial: 'P',
+    colorGradient: 'from-purple-400 to-purple-600', specialty: 'SEO & Content Strategy',
+    status: 'active', performance: 88, decisionsToday: 43, roiToday: 2900, uptime: 99.3,
+  },
+  {
+    agentId: 'agent.worker.blaze', version: '1.0.0', name: 'Blaze', role: 'growth-hacker',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Blaze, a Growth Hacker AI. You design viral loops, referral programs, and conversion rate experiments. You run rapid A/B tests, optimize landing pages, and identify the highest-leverage growth levers in the funnel.',
+    tools: ['ab-testing', 'analytics-api', 'landing-page-api', 'referral-api', 'company-profile'],
+    capabilities: ['viral-loop-design', 'ab-testing', 'conversion-optimization', 'referral-programs'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.8 },
+    limits: { maxDecisionsPerHour: 300, requireApprovalAbove: 100 },
+    displayName: 'Growth Hacker AI', avatarInitial: 'B',
+    colorGradient: 'from-fuchsia-400 to-fuchsia-600', specialty: 'Viral Growth & Conversion',
+    status: 'active', performance: 86, decisionsToday: 94, roiToday: 4100, uptime: 99.1,
+  },
+  // ── Worker Agents — Support ───────────────────────────────────────────────────
+  {
+    agentId: 'agent.worker.cleo', version: '1.0.0', name: 'Cleo', role: 'customer-success',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Cleo, a Customer Success AI. You proactively manage customer health scores, execute onboarding sequences, identify expansion revenue opportunities, and ensure every customer achieves measurable value.',
+    tools: ['crm-api', 'nps-platform', 'email-api', 'analytics-api', 'company-profile'],
+    capabilities: ['onboarding', 'health-score-monitoring', 'expansion-revenue', 'churn-prevention'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.6 },
+    limits: { maxDecisionsPerHour: 300, requireApprovalAbove: 0 },
+    displayName: 'Customer Success AI', avatarInitial: 'C',
+    colorGradient: 'from-teal-400 to-teal-600', specialty: 'Onboarding & Health Scoring',
+    status: 'active', performance: 90, decisionsToday: 112, roiToday: 4600, uptime: 99.6,
+  },
+  {
+    agentId: 'agent.worker.patch', version: '1.0.0', name: 'Patch', role: 'support-specialist',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Patch, a Support Specialist AI. You resolve support tickets, manage escalation paths, maintain SLA compliance, and turn every support interaction into a trust-building moment with the customer.',
+    tools: ['support-api', 'knowledge-base', 'escalation-api', 'crm-api', 'company-profile'],
+    capabilities: ['ticket-resolution', 'escalation-management', 'sla-tracking', 'knowledge-base'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.5 },
+    limits: { maxDecisionsPerHour: 500, requireApprovalAbove: 0 },
+    displayName: 'Support Specialist AI', avatarInitial: 'P',
+    colorGradient: 'from-emerald-400 to-emerald-600', specialty: 'Ticket Resolution & SLA',
+    status: 'active', performance: 94, decisionsToday: 287, roiToday: 3800, uptime: 99.8,
+  },
+  {
+    agentId: 'agent.worker.ember', version: '1.0.0', name: 'Ember', role: 'retention',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Ember, a Retention AI. You predict churn before it happens, execute win-back campaigns, recover NPS detractors, and keep customers engaged through personalized lifecycle touchpoints.',
+    tools: ['crm-api', 'email-api', 'churn-model', 'nps-platform', 'company-profile'],
+    capabilities: ['churn-prediction', 'win-back-campaigns', 'nps-recovery', 'lifecycle-marketing'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.7 },
+    limits: { maxDecisionsPerHour: 300, requireApprovalAbove: 0 },
+    displayName: 'Retention AI', avatarInitial: 'E',
+    colorGradient: 'from-green-400 to-teal-500', specialty: 'Churn Prevention & Win-Back',
+    status: 'active', performance: 88, decisionsToday: 74, roiToday: 6200, uptime: 99.3,
+  },
+  // ── Worker Agents — PR ────────────────────────────────────────────────────────
+  {
+    agentId: 'agent.worker.iris', version: '1.0.0', name: 'Iris', role: 'pr-media',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Iris, a PR & Media AI. You write press releases, pitch journalists, track media coverage, and build the company\'s earned media presence across trade publications and mainstream outlets.',
+    tools: ['media-api', 'press-release-api', 'journalist-db', 'monitoring-api', 'company-profile'],
+    capabilities: ['press-release-writing', 'journalist-pitching', 'media-monitoring', 'coverage-tracking'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 2048, temperature: 0.7 },
+    limits: { maxDecisionsPerHour: 100, requireApprovalAbove: 0 },
+    displayName: 'PR & Media AI', avatarInitial: 'I',
+    colorGradient: 'from-sky-400 to-sky-600', specialty: 'Media Relations & Press',
+    status: 'active', performance: 87, decisionsToday: 31, roiToday: 2700, uptime: 99.1,
+  },
+  {
+    agentId: 'agent.worker.shield', version: '1.0.0', name: 'Shield', role: 'crisis-comms',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Shield, a Crisis Communications AI. You monitor for reputational threats, draft rapid-response statements, manage narrative control during crises, and protect the brand from PR damage.',
+    tools: ['monitoring-api', 'media-api', 'social-listening', 'company-profile'],
+    capabilities: ['crisis-response', 'reputation-management', 'narrative-control', 'damage-control'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 2048, temperature: 0.4 },
+    limits: { maxDecisionsPerHour: 200, requireApprovalAbove: 0 },
+    displayName: 'Crisis Comms AI', avatarInitial: 'S',
+    colorGradient: 'from-blue-400 to-blue-600', specialty: 'Crisis Response & Reputation',
+    status: 'active', performance: 96, decisionsToday: 9, roiToday: 8400, uptime: 100,
+  },
+  {
+    agentId: 'agent.worker.buzz', version: '1.0.0', name: 'Buzz', role: 'brand-amplifier',
+    tier: 'assistant', inherits: 'agent.exec.executive',
+    systemPrompt: 'You are Buzz, a Brand Amplifier AI. You manage influencer partnerships, build social proof programs, coordinate brand collaborations, and amplify positive customer stories and company milestones across all channels.',
+    tools: ['influencer-api', 'social-media-api', 'content-api', 'monitoring-api', 'company-profile'],
+    capabilities: ['influencer-outreach', 'social-proof', 'brand-partnerships', 'content-amplification'],
+    modelPolicy: { model: 'gpt-4o', maxTokens: 1024, temperature: 0.8 },
+    limits: { maxDecisionsPerHour: 200, requireApprovalAbove: 200 },
+    displayName: 'Brand Amplifier AI', avatarInitial: 'B',
+    colorGradient: 'from-indigo-400 to-indigo-600', specialty: 'Brand & Influencer Growth',
+    status: 'active', performance: 84, decisionsToday: 53, roiToday: 3100, uptime: 99.0,
+  },
 ]
 
 // ─── Shared in-memory cache ───────────────────────────────────────────────────
@@ -401,7 +561,6 @@ export interface BoardAgent extends AgentConfig {
 }
 
 let cache: BoardAgent[] = []
-let cacheReady = false
 
 function readStorage(): BoardAgent[] {
   try {
@@ -417,25 +576,62 @@ function writeStorage(agents: BoardAgent[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(agents))
 }
 
+/** Read the wizard setup from localStorage, if present. */
+function loadWizardSetup(): { executives?: string[]; allRoles?: string[] } | null {
+  try {
+    const raw = localStorage.getItem('apex:company-setup')
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 /**
- * Hydrate cache from localStorage. If the store is empty, write SEED_AGENTS
- * once. Always call this before reading cache — it's a no-op after first call.
+ * Hydrate the cache on first access.
+ *
+ * Priority:
+ *  1. If a wizard setup exists → use only the roles it selected (applySetup logic).
+ *     Never merge extra seeds — the wizard IS the source of truth.
+ *  2. If no wizard setup → fall back to full SEED_AGENTS (demo / pre-setup state).
+ *
+ * In both cases, non-exec agents (board, worker, advisor) that are already
+ * in localStorage are preserved.
  */
 function ensureCache(): BoardAgent[] {
-  if (cacheReady) return cache
   const stored = readStorage()
-  if (stored.length > 0) {
-    cache = stored.map(enrichAgent)
-  } else {
-    const seeded: BoardAgent[] = SEED_AGENTS.map((a) => ({
-      ...a,
-      boardId: 'default',
-      addedAt: new Date().toISOString(),
-    }))
-    writeStorage(seeded)
-    cache = seeded.map(enrichAgent)
+  const setup = loadWizardSetup()
+
+  if (setup?.executives?.length) {
+    // Wizard has run — rebuild exec roster exactly from saved roles.
+    const roles = Array.from(new Set(['ceo', ...setup.executives]))
+    const nonExecs = stored.filter((a) => !a.agentId.startsWith('agent.exec.'))
+    const execs: BoardAgent[] = roles
+      .map((role) => {
+        const existing = stored.find((a) => a.agentId === `agent.exec.${role}`)
+        if (existing) return existing
+        const seed = SEED_AGENTS.find((a) => a.agentId === `agent.exec.${role}`)
+        if (!seed) return null
+        return { ...seed, boardId: 'default', addedAt: new Date().toISOString() } as BoardAgent
+      })
+      .filter(Boolean) as BoardAgent[]
+    const merged = [...execs, ...nonExecs]
+    writeStorage(merged)
+    cache = merged.map(enrichAgent)
+    return cache
   }
-  cacheReady = true
+
+  // No wizard setup yet — seed everything for demo purposes.
+  const storedIds = new Set(stored.map((a) => a.agentId))
+  const missing: BoardAgent[] = SEED_AGENTS
+    .filter((a) => !storedIds.has(a.agentId))
+    .map((a) => ({ ...a, boardId: 'default', addedAt: new Date().toISOString() }))
+  const merged = missing.length > 0 ? [...stored, ...missing] : stored
+  if (missing.length > 0) {
+    writeStorage(merged)
+    setTimeout(() => notify(), 0)
+  }
+  cache = merged.map(enrichAgent)
   return cache
 }
 
@@ -503,12 +699,40 @@ export const localAgentStore = {
   /** Reset to seeds. */
   async clear(): Promise<void> {
     localStorage.removeItem(STORAGE_KEY)
-    cacheReady = false
     ensureCache()
     notify()
   },
 
   async isAvailable(): Promise<boolean> {
     return true
+  },
+
+  /**
+   * Rebuild the exec roster from a wizard-selected role list.
+   * CEO is always included. Non-exec (worker) agents are preserved.
+   * Triggers a full notify() so every useAgents() re-renders.
+   */
+  applySetup(selectedRoles: string[]): void {
+    const current = ensureCache()
+    // Keep all non-exec agents (workers, assistants)
+    const workers = current.filter(
+      (a) => !a.agentId.startsWith('agent.exec.')
+    )
+    // Always include CEO
+    const roles = Array.from(new Set(['ceo', ...selectedRoles]))
+    const execs: BoardAgent[] = roles
+      .map((role) => {
+        // Reuse existing agent if already in cache (preserves llmKey, etc.)
+        const existing = current.find((a) => a.agentId === `agent.exec.${role}`)
+        if (existing) return existing
+        // Otherwise pull from SEED_AGENTS
+        const seed = SEED_AGENTS.find((a) => a.agentId === `agent.exec.${role}`)
+        if (!seed) return null
+        return { ...seed, boardId: 'default', addedAt: new Date().toISOString() } as BoardAgent
+      })
+      .filter(Boolean) as BoardAgent[]
+    cache = [...execs, ...workers].map(enrichAgent) as BoardAgent[]
+    writeStorage(cache)
+    notify()
   },
 }

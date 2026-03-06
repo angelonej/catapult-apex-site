@@ -10,7 +10,7 @@
 // In dev, Vite proxies /api/* → localhost:3001 (no CORS preflight).
 // In prod, set VITE_AGENT_API_URL to the full API Gateway URL.
 const BASE_URL =
-  (import.meta.env.VITE_AGENT_API_URL as string | undefined) ?? '/api'
+  ((import.meta as any).env?.VITE_AGENT_API_URL as string | undefined) ?? '/api'
 
 // ─── Types (mirrors agent-core package) ───────────────────────────────────────
 
@@ -55,6 +55,18 @@ export type AgentRole =
   | 'strategy-advisor'
   | 'investor-director'
   | 'customer-director'
+  // ── Worker Agent roles ──
+  | 'closer'
+  | 'bdr'
+  | 'demand-gen'
+  | 'content-seo'
+  | 'growth-hacker'
+  | 'customer-success'
+  | 'support-specialist'
+  | 'retention'
+  | 'pr-media'
+  | 'crisis-comms'
+  | 'brand-amplifier'
   | string
 
 export type AgentTier = 'strategic' | 'operational' | 'assistant'
@@ -174,6 +186,18 @@ export const ROLE_META: Record<string, RoleMeta> = {
   'strategy-advisor':     { label: 'STRAT',  title: 'Independent Strategy Advisor',     defaultName: 'River',    avatarInitial: 'R', specialty: 'Corporate Strategy & M&A',     colorGradient: 'from-emerald-400 to-teal-600',      tier: 'strategic',   defaultPerformance: 95 },
   'investor-director':    { label: 'INV',    title: 'Lead Investor Director',            defaultName: 'Victoria', avatarInitial: 'V', specialty: 'Capital & Investor Relations',  colorGradient: 'from-amber-500 to-yellow-600',      tier: 'strategic',   defaultPerformance: 97 },
   'customer-director':    { label: 'CUST',   title: 'Customer Advisory Director',       defaultName: 'Sage',     avatarInitial: 'S', specialty: 'Customer Voice & Advocacy',     colorGradient: 'from-rose-400 to-pink-600',         tier: 'strategic',   defaultPerformance: 91 },
+  // ── Worker Agent roles ──
+  'closer':          { label: 'AE',    title: 'Deal Closer AI',          defaultName: 'Viper',  avatarInitial: 'V', specialty: 'Contract Negotiation & Closing', colorGradient: 'from-rose-400 to-rose-600',     tier: 'assistant', defaultPerformance: 91 },
+  'bdr':             { label: 'BDR',   title: 'Revenue Hunter AI',       defaultName: 'Chase',  avatarInitial: 'C', specialty: 'Pipeline Building & Sequences',  colorGradient: 'from-orange-500 to-red-500',    tier: 'assistant', defaultPerformance: 85 },
+  'demand-gen':      { label: 'DG',    title: 'Demand Gen AI',           defaultName: 'Nova',   avatarInitial: 'N', specialty: 'Paid Media & Lead Gen',          colorGradient: 'from-violet-400 to-violet-600', tier: 'assistant', defaultPerformance: 89 },
+  'content-seo':     { label: 'SEO',   title: 'Content & SEO AI',        defaultName: 'Pixel',  avatarInitial: 'P', specialty: 'SEO & Content Strategy',         colorGradient: 'from-purple-400 to-purple-600', tier: 'assistant', defaultPerformance: 88 },
+  'growth-hacker':   { label: 'GRW',   title: 'Growth Hacker AI',        defaultName: 'Blaze',  avatarInitial: 'B', specialty: 'Viral Growth & Conversion',      colorGradient: 'from-fuchsia-400 to-fuchsia-600',tier: 'assistant', defaultPerformance: 86 },
+  'customer-success':{ label: 'CS',    title: 'Customer Success AI',     defaultName: 'Cleo',   avatarInitial: 'C', specialty: 'Onboarding & Health Scoring',    colorGradient: 'from-teal-400 to-teal-600',     tier: 'assistant', defaultPerformance: 90 },
+  'support-specialist':{ label: 'SUP', title: 'Support Specialist AI',   defaultName: 'Patch',  avatarInitial: 'P', specialty: 'Ticket Resolution & SLA',        colorGradient: 'from-emerald-400 to-emerald-600',tier: 'assistant', defaultPerformance: 94 },
+  'retention':       { label: 'RET',   title: 'Retention AI',            defaultName: 'Ember',  avatarInitial: 'E', specialty: 'Churn Prevention & Win-Back',    colorGradient: 'from-green-400 to-teal-500',    tier: 'assistant', defaultPerformance: 88 },
+  'pr-media':        { label: 'PR',    title: 'PR & Media AI',           defaultName: 'Iris',   avatarInitial: 'I', specialty: 'Media Relations & Press',        colorGradient: 'from-sky-400 to-sky-600',       tier: 'assistant', defaultPerformance: 87 },
+  'crisis-comms':    { label: 'CRS',   title: 'Crisis Comms AI',         defaultName: 'Shield', avatarInitial: 'S', specialty: 'Crisis Response & Reputation',   colorGradient: 'from-blue-400 to-blue-600',     tier: 'assistant', defaultPerformance: 96 },
+  'brand-amplifier': { label: 'AMP',   title: 'Brand Amplifier AI',      defaultName: 'Buzz',   avatarInitial: 'B', specialty: 'Brand & Influencer Growth',      colorGradient: 'from-indigo-400 to-indigo-600', tier: 'assistant', defaultPerformance: 84 },
 }
 
 /** Enrich an AgentConfig returned from the API with display metadata from ROLE_META */

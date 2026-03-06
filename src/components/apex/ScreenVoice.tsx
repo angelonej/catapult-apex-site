@@ -187,12 +187,7 @@ export function ScreenVoice() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white">Voice Command</h2>
-          <p className="text-sm text-slate-400">
-            Speak to your AI C-Suite · Voice-first platform
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">Speak to your AI C-Suite · Voice-first platform</p>
         <button
           onClick={() => setIsMuted(!isMuted)}
           className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${isMuted ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'}`}>

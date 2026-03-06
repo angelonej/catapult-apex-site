@@ -169,14 +169,7 @@ export function ScreenIndustryTools() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-black text-white">
-            Industry Performance Tools
-          </h2>
-          <p className="text-sm text-slate-400">
-            Pre-integrated suite · Zero setup · Immediate value
-          </p>
-        </div>
+        <p className="text-sm text-slate-400">Pre-integrated suite · Zero setup · Immediate value</p>
         <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1.5 flex-shrink-0">
           <motion.span
             animate={{

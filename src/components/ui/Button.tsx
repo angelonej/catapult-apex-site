@@ -41,7 +41,7 @@ export function Button({
         damping: 20
       }}
       className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
-      {...props}>
+      {...(props as any)}>
 
       {children}
     </motion.button>);
