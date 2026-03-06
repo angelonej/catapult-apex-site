@@ -243,7 +243,7 @@ async function bundleLambda(): Promise<void> {
   mkdirSync(DIST_DIR, { recursive: true })
 
   execSync(
-    `npx esbuild "${HANDLER_SRC}" --bundle --platform=node --target=node20 --format=esm --outfile="${BUNDLE_FILE}" --external:@aws-sdk/*`,
+    `npx --yes esbuild@0.24 "${HANDLER_SRC}" --bundle --platform=node --target=node20 --format=esm --outfile="${BUNDLE_FILE}" --external:@aws-sdk/*`,
     { stdio: 'inherit', cwd: ROOT },
   )
 
