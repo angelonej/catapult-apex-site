@@ -1635,16 +1635,26 @@ function StepLaunch({
     try { localStorage.setItem('apex:company-setup', JSON.stringify(setupPayload)); } catch {}
     // Rebuild the agent store to only the selected exec roles
     localAgentStore.applySetup(data.executives);
-    // Best-effort DynamoDB save with 3s timeout — never blocks launch
+    // Best-effort cloud save — never blocks launch
     const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3000);
-    fetch(`${apiBase}/local/company-setup`, {
+    const localPrefix = apiBase ? '' : '/local';
+    // POST company setup
+    fetch(`${apiBase}${localPrefix}/company-setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(setupPayload),
-      signal: controller.signal,
-    }).catch(() => {}).finally(() => clearTimeout(timer));
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => {});
+    // POST each board agent so the roster is available cross-device
+    const agentsToSync = localAgentStore.getAll();
+    agentsToSync.forEach((agent) => {
+      fetch(`${apiBase}${localPrefix}/board-agents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agent),
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => {});
+    });
     setTimeout(onLaunch, 2200);
   };
   return (

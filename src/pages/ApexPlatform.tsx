@@ -71,7 +71,7 @@ import { ScreenSetup } from '../components/apex/ScreenSetup'
 import { useAgents, useCreateAgent, useDeleteAgent, type UseAgentsResult, type NewAgentForm } from '../hooks/useAgents'
 import { useDecisions, type DecisionItem } from '../hooks/useDecisions'
 import { ROLE_META } from '../lib/agentApi'
-import { localAgentStore, subscribeAgentStore } from '../lib/localAgentStore'
+import { localAgentStore, subscribeAgentStore, syncFromCloud } from '../lib/localAgentStore'
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type Screen =
   | 'dashboard'
@@ -2714,6 +2714,10 @@ export function ApexPlatform() {
       a.role !== 'moderator' &&
       !NON_EXEC_PREFIXES.some((p) => a.agentId.startsWith(p))
   )
+  // On first mount, pull company-setup + board-agents from the cloud so
+  // every device sees the same org chart without needing to run the wizard.
+  useEffect(() => { syncFromCloud() }, [])
+
   useEffect(() => {
     const handleZelloNav = (e: Event) => {
       const detail = (e as CustomEvent).detail

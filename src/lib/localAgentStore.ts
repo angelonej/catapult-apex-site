@@ -635,6 +635,54 @@ function ensureCache(): BoardAgent[] {
   return cache
 }
 
+// ─── Cloud sync ──────────────────────────────────────────────────────────────
+
+/** Returns the production API base URL, or empty string in dev (uses /local proxy). */
+function getApiBase(): string {
+  try {
+    return (import.meta as any).env?.VITE_API_URL ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Pull company-setup and board-agents from the cloud API and hydrate
+ * localStorage + the in-memory cache.  Called once on app boot.
+ * Never throws — silently no-ops if the network is unavailable.
+ */
+export async function syncFromCloud(): Promise<void> {
+  const base = getApiBase()
+  // In dev (no VITE_API_URL) there is nothing to sync — local DynamoDB via proxy handles it.
+  if (!base) return
+
+  try {
+    // 1. Fetch company setup
+    const setupRes = await fetch(`${base}/company-setup`, { signal: AbortSignal.timeout(5000) })
+    if (setupRes.ok) {
+      const { setup } = await setupRes.json() as { setup: Record<string, unknown> | null }
+      if (setup) {
+        try { localStorage.setItem('apex:company-setup', JSON.stringify(setup)) } catch {}
+      }
+    }
+
+    // 2. Fetch board agents
+    const agentsRes = await fetch(`${base}/board-agents`, { signal: AbortSignal.timeout(5000) })
+    if (agentsRes.ok) {
+      const { agents } = await agentsRes.json() as { agents: BoardAgent[] }
+      if (agents?.length) {
+        // Write directly to localStorage so ensureCache() picks them up
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(agents)) } catch {}
+        // Bust the in-memory cache so next getAll() re-reads from storage
+        cache = []
+        notify()
+      }
+    }
+  } catch {
+    // Network unavailable — fall back to whatever is already in localStorage
+  }
+}
+
 // ─── Pub/sub ──────────────────────────────────────────────────────────────────
 
 type Listener = () => void
