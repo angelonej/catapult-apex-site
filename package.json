@@ -14,6 +14,8 @@
     "seed-board": "tsx infra/dynamodb/seed-board.ts",
     "export-data": "tsx --tsconfig infra/dynamodb/tsconfig.json infra/lambda/export-local-data.ts",
     "provision": "tsx --tsconfig infra/dynamodb/tsconfig.json infra/lambda/provision-aws.ts",
+    "push-setup": "tsx --tsconfig infra/dynamodb/tsconfig.json infra/lambda/push-setup.ts",
+    "push-prod": "tsx --tsconfig infra/dynamodb/tsconfig.json infra/lambda/push-prod-setup.ts",
     "check": "node scripts/mp-sync-check.mjs",
     "check:dry": "node scripts/mp-sync-check.mjs --dry",
     "hooks:install": "node scripts/install-hooks.mjs"

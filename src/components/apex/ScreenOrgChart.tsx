@@ -353,7 +353,7 @@ export function ScreenOrgChart() {
                       </div>
                     </div>
                     <p className="text-[12px] font-black text-amber-300 mt-0.5">CEO</p>
-                    <p className="text-[9px] text-slate-400">Aria · {companyName || 'Strategic Vision AI'}</p>
+                    <p className="text-[9px] text-slate-400">Strategic Vision AI</p>
                   </div>
 
                   <div className="w-px h-6 bg-slate-600" />
