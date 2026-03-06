@@ -422,7 +422,7 @@ function BoardMemberCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.07, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className={`group bg-slate-900 border ${member.borderColor} rounded-2xl overflow-hidden flex flex-col`}
+      className={`group bg-slate-900 border ${member.borderColor} rounded-2xl overflow-hidden`}
       style={{ boxShadow: `0 0 20px ${member.glowColor}` }}
     >
       {/* Colored header band */}
@@ -474,31 +474,43 @@ function BoardMemberCard({
         </div>
       </div>
 
-      {/* Body — flex-col so bottom content stays pinned */}
-      <div className="px-4 pt-3 pb-4 flex flex-col flex-1 gap-3">
-        {/* Expertise tags — grows to fill space */}
-        <div className="flex flex-wrap gap-1 flex-1 content-start">
+      {/* Body */}
+      <div className="px-4 pt-3 pb-4 space-y-3">
+        {/* Expertise tags */}
+        <div className="flex flex-wrap gap-1">
           {member.expertise.map((e) => (
-            <span key={e} className="text-[10px] font-semibold text-slate-400 bg-white/5 border border-white/8 px-2 py-0.5 rounded-full h-fit">
+            <span key={e} className="text-[10px] font-semibold text-slate-400 bg-white/5 border border-white/8 px-2 py-0.5 rounded-full">
               {e}
             </span>
           ))}
         </div>
 
-        {/* Metrics row — always at bottom */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-slate-800/60 rounded-xl p-2 text-center border border-white/5">
-            <p className={`text-sm font-black ${member.textColor}`}>{member.decisions}</p>
-            <p className="text-[9px] text-slate-600">Decisions</p>
+        {/* Performance bar */}
+        <div>
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="text-slate-500 font-semibold">Performance</span>
+            <span className={`font-black ${member.textColor}`}>95%</span>
           </div>
-          <div className="bg-slate-800/60 rounded-xl p-2 text-center border border-white/5">
-            <p className="text-sm font-black text-cyan-400">{member.votingWeight}x</p>
-            <p className="text-[9px] text-slate-600">Vote Weight</p>
+          <div className="w-full bg-slate-800 rounded-full h-1.5">
+            <div
+              className={`h-1.5 bg-gradient-to-r ${member.gradient} rounded-full transition-all duration-700`}
+              style={{ width: '95%' }}
+            />
           </div>
         </div>
 
-        {/* LLM badge + remove button — pinned to bottom */}
-        <div className="flex items-center gap-1.5">
+        {/* Stats row */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-500">Decisions today</span>
+          <span className={`font-black ${member.textColor}`}>{member.decisions}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-500">Vote weight</span>
+          <span className="font-black text-cyan-400">{member.votingWeight}x</span>
+        </div>
+
+        {/* LLM badge + remove button */}
+        <div className="flex items-center gap-1.5 pt-1">
           <BrainIcon className="w-3 h-3 text-slate-600" />
           <span className={`text-[11px] font-bold ${llm.color}`}>{llm.name}</span>
           <span className="text-[10px] text-slate-600">{llm.provider}</span>
