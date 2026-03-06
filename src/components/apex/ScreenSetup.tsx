@@ -1671,61 +1671,6 @@ function StepLaunch({
         </p>
       </div>
 
-      {/* Executive reveal */}
-      <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4">
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
-          Your AI Executive Team
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {selectedExecs.map((exec, i) =>
-          <motion.div
-            key={exec.id}
-            initial={{
-              opacity: 0,
-              scale: 0.7,
-              y: 10
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              y: 0
-            }}
-            transition={{
-              delay: i * 0.1,
-              type: 'spring',
-              stiffness: 300,
-              damping: 20
-            }}
-            className={`flex items-center gap-2 ${exec.bg} border ${exec.border} rounded-xl px-3 py-2`}>
-
-              <div
-              className={`w-7 h-7 bg-gradient-to-br ${exec.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-
-                <span className="text-white font-black text-xs">
-                  {exec.name[0]}
-                </span>
-              </div>
-              <div>
-                <p className={`text-xs font-black ${exec.text}`}>{exec.role}</p>
-                <p className="text-[10px] text-slate-400">{exec.name}</p>
-              </div>
-              <motion.div
-              initial={{
-                scale: 0
-              }}
-              animate={{
-                scale: 1
-              }}
-              transition={{
-                delay: i * 0.1 + 0.3
-              }}
-              className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-
-            </motion.div>
-          )}
-        </div>
-      </div>
-
       {/* Mini Org Chart */}
       {(() => {
         const industry = data.industry || 'default';
