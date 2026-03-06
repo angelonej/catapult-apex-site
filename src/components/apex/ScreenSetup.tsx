@@ -1636,9 +1636,10 @@ function StepLaunch({
     // Rebuild the agent store to only the selected exec roles
     localAgentStore.applySetup(data.executives);
     // Best-effort DynamoDB save with 3s timeout — never blocks launch
+    const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3000);
-    fetch('/local/company-setup', {
+    fetch(`${apiBase}/local/company-setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(setupPayload),
