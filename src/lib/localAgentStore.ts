@@ -650,6 +650,12 @@ function getApiBase(): string {
  * Pull company-setup and board-agents from the cloud API and hydrate
  * localStorage + the in-memory cache.  Called once on app boot.
  * Never throws — silently no-ops if the network is unavailable.
+ *
+ * Safety rules:
+ *  - Only applies board-agents if the cloud setup has a non-empty executives list.
+ *  - Filters cloud agents to ONLY exec agents whose role is in that list.
+ *    This prevents the full 83-item seed dump from overwriting a wizard-configured roster.
+ *  - If no setup exists in the cloud yet, does nothing (local wizard is authority).
  */
 export async function syncFromCloud(): Promise<void> {
   const base = getApiBase()
@@ -657,29 +663,78 @@ export async function syncFromCloud(): Promise<void> {
   if (!base) return
 
   try {
-    // 1. Fetch company setup
+    // 1. Fetch company setup first — it gates everything else
     const setupRes = await fetch(`${base}/company-setup`, { signal: AbortSignal.timeout(5000) })
-    if (setupRes.ok) {
-      const { setup } = await setupRes.json() as { setup: Record<string, unknown> | null }
-      if (setup) {
-        try { localStorage.setItem('apex:company-setup', JSON.stringify(setup)) } catch {}
-      }
-    }
+    if (!setupRes.ok) return
 
-    // 2. Fetch board agents
+    const { setup } = await setupRes.json() as { setup: Record<string, unknown> | null }
+    // If no setup saved in cloud yet, don't touch localStorage — local wizard is the authority
+    if (!setup) return
+
+    const executives = setup.executives as string[] | undefined
+    if (!executives?.length) return
+
+    // Persist the setup
+    try { localStorage.setItem('apex:company-setup', JSON.stringify(setup)) } catch {}
+
+    // 2. Fetch board agents and filter to ONLY the exec roles from the setup
     const agentsRes = await fetch(`${base}/board-agents`, { signal: AbortSignal.timeout(5000) })
-    if (agentsRes.ok) {
-      const { agents } = await agentsRes.json() as { agents: BoardAgent[] }
-      if (agents?.length) {
-        // Write directly to localStorage so ensureCache() picks them up
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(agents)) } catch {}
-        // Bust the in-memory cache so next getAll() re-reads from storage
-        cache = []
-        notify()
-      }
+    if (!agentsRes.ok) return
+
+    const { agents } = await agentsRes.json() as { agents: BoardAgent[] }
+    if (!agents?.length) return
+
+    const allowedRoles = new Set(['ceo', ...executives])
+    const filtered = agents.filter(
+      (a) =>
+        a.agentId.startsWith('agent.exec.') &&
+        allowedRoles.has(a.role ?? a.agentId.replace('agent.exec.', ''))
+    )
+    if (!filtered.length) return
+
+    // Write only the filtered exec agents — ensureCache() will add non-exec agents on top
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered)) } catch {}
+    // Bust the in-memory cache so next getAll() re-reads from storage
+    cache = []
+    notify()
+
+    // 3. Restore BOD roster IDs (stored inside company-setup)
+    const catapultRoster = setup.bodRosterCatapult as string[] | undefined
+    const customerRoster = setup.bodRosterCustomer as string[] | undefined
+    if (catapultRoster?.length) {
+      try { localStorage.setItem('apex:board-roster-catapult', JSON.stringify(catapultRoster)) } catch {}
+    }
+    if (customerRoster?.length) {
+      try { localStorage.setItem('apex:board-roster-customer', JSON.stringify(customerRoster)) } catch {}
     }
   } catch {
     // Network unavailable — fall back to whatever is already in localStorage
+  }
+}
+
+/**
+ * Push the BOD roster arrays (catapult + customer context) to the cloud
+ * by merging them into the company-setup record.
+ * Fire-and-forget — never throws.
+ */
+export async function syncBodRosterToCloud(
+  catapultIds: string[],
+  customerIds: string[]
+): Promise<void> {
+  const base = getApiBase()
+  if (!base) return
+  try {
+    // Read current setup so we don't overwrite other fields
+    const res = await fetch(`${base}/company-setup`, { signal: AbortSignal.timeout(5000) })
+    const existing = res.ok ? ((await res.json()) as { setup: Record<string, unknown> | null }).setup ?? {} : {}
+    await fetch(`${base}/company-setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...existing, bodRosterCatapult: catapultIds, bodRosterCustomer: customerIds }),
+      signal: AbortSignal.timeout(5000),
+    })
+  } catch {
+    // Network unavailable — ignore
   }
 }
 

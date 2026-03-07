@@ -13,7 +13,7 @@ import {
 'lucide-react';
 import { useAgents } from '../../hooks/useAgents';
 import { usePersonas } from '../../hooks/usePersonas';
-import { localAgentStore } from '../../lib/localAgentStore';
+import { localAgentStore, syncBodRosterToCloud } from '../../lib/localAgentStore';
 import { ROLE_META } from '../../lib/agentApi';
 import { EXEC_STATIC } from './agentStatics';
 
@@ -687,6 +687,9 @@ export function ScreenBoardOfDirectors() {
     const next = [...contextIds, agentId];
     setContextIds(next);
     saveRoster(rosterKey, next);
+    const newCatapult = context === 'catapult' ? next : catapultIds;
+    const newCustomer = context === 'customer' ? next : customerIds;
+    syncBodRosterToCloud(newCatapult, newCustomer);
   };
 
   /** Remove a director from the current context roster (future use) */
@@ -694,6 +697,9 @@ export function ScreenBoardOfDirectors() {
     const next = contextIds.filter((id) => id !== agentId);
     setContextIds(next);
     saveRoster(rosterKey, next);
+    const newCatapult = context === 'catapult' ? next : catapultIds;
+    const newCustomer = context === 'customer' ? next : customerIds;
+    syncBodRosterToCloud(newCatapult, newCustomer);
   };
 
   /** Persist the LLM choice back to localAgentStore so it survives navigation */
